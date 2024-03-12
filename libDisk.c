@@ -49,6 +49,21 @@ int closeDisk(int disk){
    return 0;
 }
 
-int readBlock(int disk, int bNum, void *block);
+int readBlock(int disk, int bNum, void *block){
+    int flags = fcntl(disk, F_GETFL);
+    if (flags == -1) {
+        return -1;
+    }
+    int offset = bNum * BLOCKSIZE;
+    if (lseek(disk, offset, SEEK_SET) == -1) {
+        return -1;
+    }
+    int bytesRead = read(disk, block, BLOCKSIZE);
+    if (bytesRead == -1 || bytesRead<BLOCKSIZE) {
+        return -1;
+    }
+    return 0;
+}
+    
 
 int writeBlock(int disk, int bNum, void *block);
