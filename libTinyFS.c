@@ -10,6 +10,7 @@ inodes, etc. Must return a specified success/error code. */
 
 int tfs_mount(char *diskname);
 
+
 int tfs_unmount(void);
 /* tfs_mount(char *diskname) “mounts” a TinyFS file system located within
 ‘diskname’. tfs_unmount(void) “unmounts” the currently mounted file
@@ -46,5 +47,3 @@ tfs_readByte() should return an error and not increment the file pointer.
 int tfs_seek(fileDescriptor FD, int offset);
 /* change the file pointer location to offset (absolute). Returns
 success/error codes.*/
-
-In your tinyFS.h file, you must also include the following definitions:
