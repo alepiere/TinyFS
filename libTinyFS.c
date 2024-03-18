@@ -10,7 +10,6 @@ inodes, etc. Must return a specified success/error code. */
 
 int tfs_mount(char *diskname);
 
-
 int tfs_unmount(void);
 /* tfs_mount(char *diskname) “mounts” a TinyFS file system located within
 ‘diskname’. tfs_unmount(void) “unmounts” the currently mounted file
