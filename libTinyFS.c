@@ -9,13 +9,16 @@
 
 int mounted = 0; // 1 if file system is mounted, 0 if not
 
-int tfs_mkfs(char *filename, int nBytes){
-/* Makes a blank TinyFS file system of size nBytes on the unix file
-specified by ‘filename’. This function should use the emulated disk
-library to open the specified unix file, and upon success, format the
-file to be a mountable disk. This includes initializing all data to 0x00,
-setting magic numbers, initializing and writing the superblock and
-inodes, etc. Must return a specified success/error code. */
+int mounted = 0; // 1 if file system is mounted, 0 if not
+
+int tfs_mkfs(char *filename, int nBytes)
+{
+    /* Makes a blank TinyFS file system of size nBytes on the unix file
+    specified by ‘filename’. This function should use the emulated disk
+    library to open the specified unix file, and upon success, format the
+    file to be a mountable disk. This includes initializing all data to 0x00,
+    setting magic numbers, initializing and writing the superblock and
+    inodes, etc. Must return a specified success/error code. */
     superblock sb;
     sb.type = SUPERBLOCK;
     sb.magic = 0x44;
@@ -23,7 +26,8 @@ inodes, etc. Must return a specified success/error code. */
     sb.nBlocks = nBytes / BLOCKSIZE;
 
     int fd = openDisk(filename, nBytes);
-    if (fd < 0) {
+    if (fd < 0)
+    {
         fprintf(stderr, "Error: Unable to open disk file.\n");
         return INVLD_BLK_SIZE;
     }
@@ -92,9 +96,9 @@ entry */
 }
 
 
-int tfs_writeFile(fileDescriptor FD,char *buffer, int size);
+int tfs_writeFile(fileDescriptor FD, char *buffer, int size);
 /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
-file’s content, to the file system. Previous content (if any) will be 
+file’s content, to the file system. Previous content (if any) will be
 completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes. */
 
@@ -120,13 +124,14 @@ success/error codes.*/
 #include "libDisk.h"
 #include "TinyFS_errno.h"
 
-int tfs_mkfs(char *filename, int nBytes){
-/* Makes a blank TinyFS file system of size nBytes on the unix file
-specified by ‘filename’. This function should use the emulated disk
-library to open the specified unix file, and upon success, format the
-file to be a mountable disk. This includes initializing all data to 0x00,
-setting magic numbers, initializing and writing the superblock and
-inodes, etc. Must return a specified success/error code. */
+int tfs_mkfs(char *filename, int nBytes)
+{
+    /* Makes a blank TinyFS file system of size nBytes on the unix file
+    specified by ‘filename’. This function should use the emulated disk
+    library to open the specified unix file, and upon success, format the
+    file to be a mountable disk. This includes initializing all data to 0x00,
+    setting magic numbers, initializing and writing the superblock and
+    inodes, etc. Must return a specified success/error code. */
     superblock sb;
     sb.type = SUPERBLOCK;
     sb.magic = 0x44;
@@ -134,12 +139,13 @@ inodes, etc. Must return a specified success/error code. */
     sb.nBlocks = nBytes / BLOCKSIZE;
 
     int fd = openDisk(filename, nBytes);
-    if (fd < 0) {
+    if (fd < 0)
+    {
         fprintf(stderr, "Error: Unable to open disk file.\n");
         return INVLD_BLK_SIZE;
     }
-    else {
-        
+    else
+    {
     }
 }
 
@@ -162,9 +168,9 @@ int tfs_closeFile(fileDescriptor FD);
 /* Closes the file, de-allocates all system resources, and removes table
 entry */
 
-int tfs_writeFile(fileDescriptor FD,char *buffer, int size);
+int tfs_writeFile(fileDescriptor FD, char *buffer, int size);
 /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
-file’s content, to the file system. Previous content (if any) will be 
+file’s content, to the file system. Previous content (if any) will be
 completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes. */
 
