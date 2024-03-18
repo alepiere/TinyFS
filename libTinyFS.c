@@ -7,6 +7,8 @@
 #include "libDisk.h"
 #include "TinyFS_errno.h"
 
+int mounted = 0; // 1 if file system is mounted, 0 if not
+
 int tfs_mkfs(char *filename, int nBytes){
 /* Makes a blank TinyFS file system of size nBytes on the unix file
 specified by ‘filename’. This function should use the emulated disk
@@ -30,24 +32,65 @@ inodes, etc. Must return a specified success/error code. */
     }
 }
 
-int tfs_mount(char *diskname);
+int tfs_mount(char *diskname){
+    //check if already mounted
+    if (mounted){
+        fprintf(stderr, "Error: File system already mounted.\n");
+        return MOUNTED_ERROR;
+    }
+    
+    int disk = openDisk(diskname, 0);
+    if (disk < 0) {
+      return DISK_ERROR;
+    }
 
-int tfs_unmount(void);
+    char superblock_data[BLOCKSIZE];
+    if (readBlock(disk, 0, superblock_data) == -1) {
+        fprintf(stderr, "Error: Unable to read superblock from disk.\n");
+        closeDisk(disk);
+        return DISK_READ_ERROR;
+    }
+
+    //check for magic number
+    if (superblock_data[1] != 0x44) {
+        fprintf(stderr, "Error: Incorrect magic number. Not a TinyFS file system.\n");
+        closeDisk(disk);
+        return ;
+    }
+    mounted = 1;
+    printf("File system mounted successfully: %s\n", diskname);
+    closeDisk(disk);
+    return 0;
+}
+
+int tfs_unmount(void){
 /* tfs_mount(char *diskname) “mounts” a TinyFS file system located within
 ‘diskname’. tfs_unmount(void) “unmounts” the currently mounted file
 system. As part of the mount operation, tfs_mount should verify the file
 system is the correct type. In tinyFS, only one file system may be
 mounted at a time. Use tfs_unmount to cleanly unmount the currently
 mounted file system. Must return a specified success/error code. */
+    if (!mounted){
+        fprintf(stderr, "Error: No file system mounted.\n");
+        return MOUNTED_ERROR;
+    }
+    mounted = 0;
+    printf("File system unmounted successfully.\n");
+    return 0;
+}
 
 fileDescriptor tfs_openFile(char *name);
 /* Creates or Opens a file for reading and writing on the currently
 mounted file system. Creates a dynamic resource table entry for the file,
 and returns a file descriptor (integer) that can be used to reference
 this entry while the filesystem is mounted. */
-int tfs_closeFile(fileDescriptor FD);
+
+int tfs_closeFile(fileDescriptor FD){
 /* Closes the file, de-allocates all system resources, and removes table
 entry */
+    int result = close(FD);
+}
+
 
 int tfs_writeFile(fileDescriptor FD,char *buffer, int size);
 /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
@@ -137,4 +180,4 @@ tfs_readByte() should return an error and not increment the file pointer.
 
 int tfs_seek(fileDescriptor FD, int offset);
 /* change the file pointer location to offset (absolute). Returns
-success/error code
+success/error code */

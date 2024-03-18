@@ -18,7 +18,7 @@ Inode *createInode(char *filename, int fileSize) {
     }
     // Copy filename
     strncpy(newInode->filename, filename, 8);
-    newInode->filename[8] = '\0'; // Ensure null termination
+    newInode->filename[MAX_FILENAME_LENGTH] = '\0'; // Ensure null termination
     newInode->fileSize = fileSize;
     newInode->next = NULL;
     return newInode;
@@ -39,6 +39,7 @@ void insertInode(Inode **head, Inode *newInode) {
 
 // print the linked list of inodes
 void printInodes(Inode *head) {
+    printf("Inodes:\n");
     Inode *current = head;
     while (current != NULL) {
         printf("Filename: %s, File size: %d\n", current->filename, current->fileSize);
@@ -49,9 +50,8 @@ void printInodes(Inode *head) {
 // free the linked list of inodes
 void freeInodes(Inode *head) {
     Inode *current = head;
-    Inode *next;
     while (current != NULL) {
-        next = current->next;
+        Inode *next = current->next;
         free(current);
         current = next;
     }
