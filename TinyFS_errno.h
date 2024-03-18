@@ -6,5 +6,6 @@
 #define DISK_READ_ERROR -3
 #define MOUNTED_ERROR -4
 #define MAGIC_NUMBER_ERROR -5
+#define WRITE_ERROR -6
 
 #endif 
