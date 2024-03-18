@@ -1,3 +1,6 @@
-#define ERR -1 
+#ifndef __TINY_FS_ERRNO_H__
+#define __TINY_FS_ERRNO_H__
 
-#endif
+#define INVLD_BLK_SIZE -1 
+
+#endif 

@@ -1,12 +1,34 @@
-#include "libtinyFS.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <time.h>
+#include "libTinyFS.h"
+#include "libDisk.h"
+#include "TinyFS_errno.h"
 
-int tfs_mkfs(char *filename, int nBytes);
+int tfs_mkfs(char *filename, int nBytes){
 /* Makes a blank TinyFS file system of size nBytes on the unix file
 specified by ‘filename’. This function should use the emulated disk
 library to open the specified unix file, and upon success, format the
 file to be a mountable disk. This includes initializing all data to 0x00,
 setting magic numbers, initializing and writing the superblock and
 inodes, etc. Must return a specified success/error code. */
+    superblock sb;
+    sb.type = SUPERBLOCK;
+    sb.magic = 0x44;
+    sb.blockSize = BLOCKSIZE;
+    sb.nBlocks = nBytes / BLOCKSIZE;
+
+    int fd = openDisk(filename, nBytes);
+    if (fd < 0) {
+        fprintf(stderr, "Error: Unable to open disk file.\n");
+        return INVLD_BLK_SIZE;
+    }
+    else {
+        
+    }
+}
 
 int tfs_mount(char *diskname);
 
@@ -46,5 +68,3 @@ tfs_readByte() should return an error and not increment the file pointer.
 int tfs_seek(fileDescriptor FD, int offset);
 /* change the file pointer location to offset (absolute). Returns
 success/error codes.*/
-
-In your tinyFS.h file, you must also include the following definitions:
