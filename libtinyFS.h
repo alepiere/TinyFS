@@ -8,3 +8,22 @@ possible values */
 #define DEFAULT_DISK_NAME “tinyFSDisk”
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;
+
+
+typedef struct SuperBlock {
+    int type;
+    int magic;
+    int blockSize;
+    int nBlocks;
+    int rootInode;
+    int freeNodes;
+} superblock;
+
+
+
+//block types
+#define EMPTY 0
+#define SUPERBLOCK 1
+#define INODE 2
+#define FILE_EXTENT 3
+#define FREE_BLOCK 4
