@@ -9,8 +9,6 @@
 
 int mounted = 0; // 1 if file system is mounted, 0 if not
 
-int mounted = 0; // 1 if file system is mounted, 0 if not
-
 int tfs_mkfs(char *filename, int nBytes)
 {
     /* Makes a blank TinyFS file system of size nBytes on the unix file
@@ -31,7 +29,33 @@ int tfs_mkfs(char *filename, int nBytes)
         fprintf(stderr, "Error: Unable to open disk file.\n");
         return INVLD_BLK_SIZE;
     }
-    else {
+    else
+    {
+        unsigned char data = 0x01; // Modify the data to be written
+        if (write(fd, &data, sizeof(data)) != sizeof(data))
+        {
+            fprintf(stderr, "Error: Unable to write physical data.\n");
+            return WRITE_ERROR;
+        }
+        if (write(fd, &data, sizeof(data)) != sizeof(data))
+        {
+            fprintf(stderr, "Error: Unable to write physical data.\n");
+            return WRITE_ERROR;
+        }
+        // Initialize the rest of the data to 0x00
+        unsigned char zeroData = 0x00;
+        // calculate the disk size and write the rest of the data
+        off_t diskSize = nBytes - (nBytes % BLOCKSIZE);
+        int remainingBytes = diskSize - sizeof(data) * 2;
+        for (int i = 0; i < remainingBytes; i++)
+        {
+            if (write(fd, &zeroData, sizeof(zeroData)) != sizeof(zeroData))
+            {
+                fprintf(stderr, "Error: Unable to write physical data.\n");
+                return WRITE_ERROR;
+            }
+        }
+        
         
     }
 }
@@ -59,7 +83,7 @@ int tfs_mount(char *diskname){
     if (superblock_data[1] != 0x44) {
         fprintf(stderr, "Error: Incorrect magic number. Not a TinyFS file system.\n");
         closeDisk(disk);
-        return ;
+        return MAGIC_NUMBER_ERROR;
     }
     mounted = 1;
     printf("File system mounted successfully: %s\n", diskname);
@@ -98,7 +122,7 @@ entry */
 
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size);
 /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
-file’s content, to the file system. Previous content (if any) will be
+file’s content, to the file system. Previous content (if any) will be 
 completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes. */
 
