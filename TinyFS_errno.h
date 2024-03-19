@@ -7,5 +7,7 @@
 #define MOUNTED_ERROR -4
 #define MAGIC_NUMBER_ERROR -5
 #define WRITE_ERROR -6
+#define SEEK_ERROR -7
+#define BITMAP_SIZE_ERROR -8
 
 #endif 

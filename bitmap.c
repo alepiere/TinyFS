@@ -5,21 +5,32 @@
 Bitmap* create_bitmap( int memory_size, int block_size) {
     Bitmap *bitmap = (Bitmap *)malloc(sizeof(Bitmap));
     if (bitmap != NULL) {
-        bitmap->memory_size = memory_size;
+        // can store 8 blocks in the 8 bits in one byte and 
+        bitmap->bitmap_size = ((memory_size / block_size) + 7) / 8;
         bitmap->block_size = block_size;
         bitmap->num_blocks = memory_size / block_size;
+        printf("bitmap size: %d\n", bitmap->bitmap_size);
+        printf("block_size: %d\n", bitmap->block_size);
+        printf("num_blocks: %d\n", bitmap->num_blocks);
         // Allocate memory for free blocks by number of bytes
         bitmap->free_blocks = (uint8_t*)malloc((bitmap->num_blocks + 7) / 8);
-        if (bitmap->free_blocks == NULL) {
+        if ((bitmap->free_blocks) == NULL) {
             free(bitmap);
             return NULL;
         }
+        initialize_free_blocks(bitmap);
+        allocate_block(bitmap, 1); // directory block goes here
+        free_block(bitmap, 0);
+        int free_block = find_free_blocks_of_size(bitmap, 12);
+        printf("Free block: %d\n", free_block);
     }
+    return bitmap;
 }
 
 // function to initialize the free blocks
 void initialize_free_blocks(Bitmap *bitmap) {
-    int num_bytes = (bitmap->num_blocks + 7) / 8;
+    int num_blocks = bitmap->num_blocks;
+    int num_bytes = (num_blocks + 7) / 8;
     for (int i = 0; i < num_bytes; i++) {
         bitmap->free_blocks[i] = 0xFF; // All blocks are set to 1 indicating they are free
     }
@@ -49,7 +60,8 @@ void free_block(Bitmap *bitmap, int block_index) {
 // function to see if there are contigious blocks of memory of a set size
 int find_free_blocks_of_size(Bitmap *bitmap, int block_size) {
     int free_blocks = 0;
-    for (int i = 0; i < bitmap->num_blocks; i++) {
+    int num_blocks = bitmap->num_blocks;
+    for (int i = 0; i < num_blocks; i++) {
         if (is_block_free(bitmap, i)) {
             free_blocks++;
             if (free_blocks == block_size) {
