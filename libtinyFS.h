@@ -9,18 +9,6 @@ possible values */
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;
 
-
-typedef struct SuperBlock {
-    int type;
-    int magic;
-    int blockSize;
-    int nBlocks;
-    int rootInode;
-    int freeNodes;
-} superblock;
-
-
-
 //block types
 #define EMPTY 0
 #define SUPERBLOCK 1
