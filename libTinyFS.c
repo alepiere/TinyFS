@@ -14,6 +14,85 @@ int fds = 1; // File descriptor counter
 
 FileEntry *openFileTable = NULL;
 
+Bitmap* readBitmap(int disk) {
+    // Go to the location where the bitmap is stored on disk
+    if (lseek(disk, 4, SEEK_SET) == -1) {
+        fprintf(stderr, "Error: Unable to seek to index 4.\n");
+        closeDisk(disk);
+        return NULL;
+    }
+
+    // Read the bitmap structure from disk
+    Bitmap* bitmap = (Bitmap*)malloc(sizeof(Bitmap));
+    if (read(disk, bitmap, sizeof(Bitmap)) != sizeof(Bitmap)) {
+        fprintf(stderr, "Error: Unable to read bitmap data.\n");
+        closeDisk(disk);
+        free(bitmap);
+        return NULL;
+    }
+
+    // Allocate memory for free blocks
+    bitmap->free_blocks = (uint8_t*)malloc(bitmap->bitmap_size);
+    if (bitmap->free_blocks == NULL) {
+        fprintf(stderr, "Error: Unable to allocate memory for bitmap contents.\n");
+        closeDisk(disk);
+        free(bitmap);
+        return NULL;
+    }
+
+    // Read the bitmap contents from disk
+    if (read(disk, bitmap->free_blocks, bitmap->bitmap_size) != bitmap->bitmap_size) {
+        fprintf(stderr, "Error: Unable to read bitmap contents.\n");
+        closeDisk(disk);
+        free(bitmap->free_blocks);
+        free(bitmap);
+        return NULL;
+    }
+
+    return bitmap;
+}
+
+int writeBitmap(int disk, Bitmap *bitmap){
+    // Go back to index 4(location where bitmap should be written to disk)
+        if (lseek(disk, 4, SEEK_SET) == -1)
+        {
+            fprintf(stderr, "Error: Unable to seek to index 4.\n");
+            closeDisk(disk);
+            return SEEK_ERROR;
+        }
+
+    if (bitmap->bitmap_size + sizeof(Bitmap) > 232)
+        {
+            fprintf(stderr, "Error: Bitmap size too large.\n");
+            closeDisk(disk);
+            return BITMAP_SIZE_ERROR;
+        }
+        printf("sizeof bitmap = %zu\n", sizeof(Bitmap));
+        printf("Bitmap size: %d\n", bitmap->bitmap_size);
+        printf("Bitmap contents: ");
+        for (int i = 0; i < bitmap->bitmap_size; i++)
+        {
+            printf("%d ", bitmap->free_blocks[i]);
+        }
+        printf("\n");
+        if (write(disk, bitmap, sizeof(Bitmap)) != sizeof(Bitmap))
+        {
+            fprintf(stderr, "Error: Unable to write bitmap data.\n");
+            closeDisk(disk);
+            return WRITE_ERROR;
+        }
+        printf("Bitmap data written.\n");
+        if (write(disk, bitmap->free_blocks, bitmap->bitmap_size) != bitmap->bitmap_size)
+        {
+            fprintf(stderr, "Error: Unable to write bitmap data.\n");
+            closeDisk(disk);
+            return WRITE_ERROR;
+        }
+        printf("Bitmap contents written.\n");
+    return 1;
+}
+
+
 int tfs_mkfs(char *filename, int nBytes)
 {
     /* Makes a blank TinyFS file system of size nBytes on the unix file
@@ -56,13 +135,6 @@ int tfs_mkfs(char *filename, int nBytes)
                 return WRITE_ERROR;
             }
         }
-        // Go back to index 4
-        if (lseek(fd, 4, SEEK_SET) == -1)
-        {
-            fprintf(stderr, "Error: Unable to seek to index 4.\n");
-            closeDisk(fd);
-            return SEEK_ERROR;
-        }
 
         // Start the bitmap
         Bitmap *bitmap = create_bitmap(diskSize - BLOCKSIZE, BLOCKSIZE);
@@ -70,37 +142,8 @@ int tfs_mkfs(char *filename, int nBytes)
         // bit map only able to hold max of 232 * 8 blocks worth of data
         // 1856 should be enough blocks to store all the data on our system and if we need more in the future
         // we can alter how bitmap is store structurally
-
-        if (bitmap->bitmap_size + sizeof(Bitmap) > 232)
-        {
-            fprintf(stderr, "Error: Bitmap size too large.\n");
-            closeDisk(fd);
-            return BITMAP_SIZE_ERROR;
-        }
-        printf("sizeof bitmap = %zu\n", sizeof(Bitmap));
-        printf("Bitmap size: %d\n", bitmap->bitmap_size);
-        printf("Bitmap contents: ");
-        for (int i = 0; i < bitmap->bitmap_size; i++)
-        {
-            printf("%d ", bitmap->free_blocks[i]);
-        }
-        printf("\n");
-        if (write(fd, bitmap, sizeof(Bitmap)) != sizeof(Bitmap))
-        {
-            fprintf(stderr, "Error: Unable to write bitmap data.\n");
-            closeDisk(fd);
-            return WRITE_ERROR;
-        }
-        printf("Bitmap data written.\n");
-        printf("data_size %zu", data_size);
-        if (write(fd, bitmap->free_blocks, bitmap->bitmap_size) != bitmap->bitmap_size)
-        {
-            fprintf(stderr, "Error: Unable to write bitmap data.\n");
-            closeDisk(fd);
-            return WRITE_ERROR;
-        }
-        printf("Bitmap contents written.\n");
-        return 1; // make success code for mkfs
+        return writeBitmap(fd, bitmap);
+        // make success code for mkfs
     }
 }
 
@@ -184,18 +227,20 @@ this entry while the filesystem is mounted. */
     // File does not exist, creates a dynamic resource table entry for the file, returns a file descriptor
     int fd = fds++;
     FileEntry *newFileEntry = createFileEntry(name, fd);
-    insertFileEntry(&openFileTable, newFileEntry);
-    return fd;
+    insertFileEntry(openFileTable, newFileEntry);
+
     /* find first free location to place an inode block */
     /* add a new entry in drt that refers to this filename
 	 *     returns a fileDescriptor (temp->id) */
+    return fd;
 }
 
 int tfs_closeFile(fileDescriptor FD)
 {
     /* Closes the file, de-allocates all system resources, and removes table
     entry */
-    int result = close(FD);
+
+    int result = deleteFileEntry(openFileTable, FD);
     return result;
 }
 
