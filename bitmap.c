@@ -10,7 +10,7 @@ Bitmap* create_bitmap( int memory_size, int block_size) {
         bitmap->num_blocks = memory_size / block_size;
         // Allocate memory for free blocks by number of bytes
         bitmap->free_blocks = (uint8_t*)malloc((bitmap->num_blocks + 7) / 8);
-        if (bitmap->free_blocks = NULL) {
+        if (bitmap->free_blocks == NULL) {
             free(bitmap);
             return NULL;
         }

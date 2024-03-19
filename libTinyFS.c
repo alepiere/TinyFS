@@ -6,8 +6,11 @@
 #include "libTinyFS.h"
 #include "libDisk.h"
 #include "TinyFS_errno.h"
+#include "fdLL.c"
 
 int mounted = 0; // 1 if file system is mounted, 0 if not
+char *currMountedFS; // Name of the currently mounted file system
+
 
 int tfs_mkfs(char *filename, int nBytes)
 {
@@ -85,8 +88,12 @@ int tfs_mount(char *diskname){
         closeDisk(disk);
         return MAGIC_NUMBER_ERROR;
     }
+
     mounted = 1;
     printf("File system mounted successfully: %s\n", diskname);
+    currMountedFS = (char *)malloc(strlen(diskname));
+    strcpy(currMountedFS, diskname);
+    FileEntry *current = resourceTable;
     closeDisk(disk);
     return 0;
 }
@@ -107,11 +114,27 @@ mounted file system. Must return a specified success/error code. */
     return 0;
 }
 
-fileDescriptor tfs_openFile(char *name);
+fileDescriptor tfs_openFile(char *name){
 /* Creates or Opens a file for reading and writing on the currently
 mounted file system. Creates a dynamic resource table entry for the file,
 and returns a file descriptor (integer) that can be used to reference
 this entry while the filesystem is mounted. */
+if (!mounted) {
+        fprintf(stderr, "Error: No file system mounted.\n");
+        return MOUNTED_ERROR; // Or define an appropriate error code
+    }
+
+    // Check if the file already exists in the dynamic resource table
+    for (int i = 0; i < MAX_OPEN_FILES; i++) {
+        if (strcmp(dynamic_resource_table[i].filename, name) == 0) {
+            // File already exists, return its file descriptor
+            return dynamic_resource_table[i].fd;
+        }
+    }
+
+    // File does not exist, create a new entry in the dynamic resource table
+
+}
 
 int tfs_closeFile(fileDescriptor FD){
 /* Closes the file, de-allocates all system resources, and removes table
