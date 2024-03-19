@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <time.h>
 #include "libTinyFS.h"
 #include "libDisk.h"
 #include "TinyFS_errno.h"
@@ -182,17 +181,14 @@ this entry while the filesystem is mounted. */
         current = current->next;
     }
     
-     // File does not exist, create a new FileEntry for the file
-     // Creates a dynamic resource table entry for the file, and returns a file descriptor
+    // File does not exist, creates a dynamic resource table entry for the file, returns a file descriptor
     int fd = fds++;
     FileEntry *newFileEntry = createFileEntry(name, fd);
-    insertFileEntry(&(*openFileTable), newFileEntry)
-
-
+    insertFileEntry(&openFileTable, newFileEntry);
+    return fd;
     /* find first free location to place an inode block */
     /* add a new entry in drt that refers to this filename
 	 *     returns a fileDescriptor (temp->id) */
-    close(fd);
 }
 
 int tfs_closeFile(fileDescriptor FD)
@@ -219,9 +215,28 @@ If the file pointer is already past the end of the file then
 tfs_readByte() should return an error and not increment the file pointer.
 */
 
-int tfs_seek(fileDescriptor FD, int offset);
+int tfs_seek(fileDescriptor FD, int offset){
 /* change the file pointer location to offset (absolute). Returns
 success/error codes.*/
+    if (!mounted){
+        return MOUNTED_ERROR;
+    }
+
+    FileEntry *current = openFileTable;
+    fileDescriptor fd = openDisk(currMountedFS,0);
+
+    while(current != NULL){
+        if(current->fileDescriptor == FD){
+            if (lseek(current->fileDescriptor, offset, SEEK_SET) == -1) {
+                return SEEK_ERROR;
+            }
+            closeDisk(FD);
+            return 1;
+        }
+        current = current->next;
+    }
+    return SEEK_FAIL;
+}
 
 int main()
 {

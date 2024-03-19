@@ -5,6 +5,7 @@
 typedef struct FileEntry {
     char filename[MAX_FILENAME_LENGTH];  // File name
     int fileDescriptor;           // File descriptor
+    int filesize;                 // File size
     struct FileEntry* next;       // Pointer to the next file entry
 } FileEntry;
 
@@ -17,9 +18,9 @@ FileEntry *createFileEntry(char *filename, int fileDescriptor) {
     }
     // Copy filename
     if (strcpy(newFileEntry->filename, filename) == NULL) {
-        fprintf(stderr, "Error: Failed to copy filename.\n");
-        free(newFileEntry);
-        return -1;
+    fprintf(stderr, "Error: Failed to copy filename.\n");
+    free(newFileEntry);
+    return -1;
     }
     newFileEntry->filename[MAX_FILENAME_LENGTH] = '\0'; // Ensure null termination
     newFileEntry->fileDescriptor = fileDescriptor;
