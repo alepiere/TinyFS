@@ -10,6 +10,6 @@
 #define SEEK_ERROR -7
 #define BITMAP_SIZE_ERROR -8
 #define SEEK_FAIL -9
-#define SEEK_ERROR -10
+#define FREE_BLOCK_ERROR -10
 
 #endif 

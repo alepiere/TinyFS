@@ -7,7 +7,7 @@
 
 int openDisk(char *filename, int nBytes){
     int fd;
-    if(nBytes < BLOCKSIZE){
+    if(nBytes < BLOCKSIZE && nBytes != 0){
         fprintf(stderr, "Error: Disk size must be at least BLOCKSIZE bytes.\n");
         return -1;
     }

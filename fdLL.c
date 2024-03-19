@@ -7,11 +7,15 @@
 typedef struct FileEntry {
     char filename[MAX_FILENAME_LENGTH+1];  // File name
     fileDescriptor fileDescriptor;           // File descriptor
+    int file_size;                         // File size
+    int inode_index;                       // Index of the inode
+    int file_index;                       // Index of the first block of file
+    int offset;                            // Offset of the file
     struct FileEntry* next;       // Pointer to the next file entry
 } FileEntry;
 
 // create a new FileEntry
-FileEntry *createFileEntry(char *filename, fileDescriptor fileDescriptor) {
+FileEntry *createFileEntry(char *filename, fileDescriptor fileDescriptor, int inode_index) {
     FileEntry *newFileEntry = (FileEntry *)malloc(sizeof(FileEntry));
     if (newFileEntry == NULL) {
         fprintf(stderr, "Error: Memory allocation failed for new FileEntry.\n");
@@ -25,6 +29,10 @@ FileEntry *createFileEntry(char *filename, fileDescriptor fileDescriptor) {
     }
     newFileEntry->filename[MAX_FILENAME_LENGTH] = '\0'; // Ensure null termination
     newFileEntry->fileDescriptor = fileDescriptor;
+    newFileEntry->file_size = 0;
+    newFileEntry->inode_index = inode_index;
+    newFileEntry->file_index = -1;
+    newFileEntry->offset = 0;
     newFileEntry->next = NULL;
     return newFileEntry;
 }
