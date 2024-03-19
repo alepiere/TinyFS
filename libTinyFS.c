@@ -10,7 +10,9 @@
 
 int mounted = 0; // 1 if file system is mounted, 0 if not
 char *currMountedFS; // Name of the currently mounted file system
+int fds = 1; // File descriptor counter
 
+FileEntry *openFileTable = NULL;
 
 int tfs_mkfs(char *filename, int nBytes)
 {
@@ -65,6 +67,7 @@ int tfs_mkfs(char *filename, int nBytes)
 
 int tfs_mount(char *diskname){
     //check if already mounted
+
     if (mounted){
         fprintf(stderr, "Error: File system already mounted.\n");
         return MOUNTED_ERROR;
@@ -93,7 +96,6 @@ int tfs_mount(char *diskname){
     printf("File system mounted successfully: %s\n", diskname);
     currMountedFS = (char *)malloc(strlen(diskname));
     strcpy(currMountedFS, diskname);
-    FileEntry *current = resourceTable;
     closeDisk(disk);
     return 0;
 }
@@ -119,21 +121,31 @@ fileDescriptor tfs_openFile(char *name){
 mounted file system. Creates a dynamic resource table entry for the file,
 and returns a file descriptor (integer) that can be used to reference
 this entry while the filesystem is mounted. */
-if (!mounted) {
+    if (!mounted) {
         fprintf(stderr, "Error: No file system mounted.\n");
         return MOUNTED_ERROR; // Or define an appropriate error code
     }
 
     // Check if the file already exists in the dynamic resource table
-    for (int i = 0; i < MAX_OPEN_FILES; i++) {
-        if (strcmp(dynamic_resource_table[i].filename, name) == 0) {
+    FileEntry *current = openFileTable;
+    while (current != NULL) {
+        if (strcmp(current->filename, name) == 0) {
             // File already exists, return its file descriptor
-            return dynamic_resource_table[i].fd;
+            return current->fileDescriptor;
         }
+        current = current->next;
     }
+    
+     // File does not exist, create a new FileEntry for the file
+     // Creates a dynamic resource table entry for the file, and returns a file descriptor
+    int fd = fds++;
+    insertFileEntry(FileEntry **head, FileEntry *newFileEntry)
 
-    // File does not exist, create a new entry in the dynamic resource table
 
+    /* find first free location to place an inode block */
+    /* add a new entry in drt that refers to this filename
+	 *     returns a fileDescriptor (temp->id) */
+    close(fd);
 }
 
 int tfs_closeFile(fileDescriptor FD){
