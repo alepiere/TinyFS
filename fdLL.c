@@ -16,7 +16,11 @@ FileEntry *createFileEntry(char *filename, int fileDescriptor) {
         return NULL;
     }
     // Copy filename
-    strncpy(newFileEntry->filename, filename, 8);
+    if (strcpy(newFileEntry->filename, filename) == NULL) {
+        fprintf(stderr, "Error: Failed to copy filename.\n");
+        free(newFileEntry);
+        return -1;
+    }
     newFileEntry->filename[MAX_FILENAME_LENGTH] = '\0'; // Ensure null termination
     newFileEntry->fileDescriptor = fileDescriptor;
     newFileEntry->next = NULL;

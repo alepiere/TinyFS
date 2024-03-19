@@ -185,7 +185,8 @@ this entry while the filesystem is mounted. */
      // File does not exist, create a new FileEntry for the file
      // Creates a dynamic resource table entry for the file, and returns a file descriptor
     int fd = fds++;
-    insertFileEntry(FileEntry **head, FileEntry *newFileEntry)
+    FileEntry *newFileEntry = createFileEntry(name, fd);
+    insertFileEntry(&(*openFileTable), newFileEntry)
 
 
     /* find first free location to place an inode block */
