@@ -18,8 +18,23 @@ FileEntry *openFileTable = NULL;
 
 Bitmap *readBitmap(int disk)
 {
+    char blockData[BLOCKSIZE];
+    if (readBlock(disk, 0, blockData) == -1)
+    {
+        fprintf(stderr, "Error: Unable to read block from disk.\n");
+        closeDisk(disk);
+        return NULL;
+    }
+    printf("Block Data (in bytes) for readbitmap: ");
+    for (int i = 0; i < BLOCKSIZE; i++)
+    {
+        printf("%02X ", (unsigned char)blockData[i]);
+    }
+    printf("\n");
+    diskInfo *diskInfo = getDiskByFD(disk);
+    FILE *file_pointer = diskInfo->file_pointer;
     // Go to the location where the bitmap is stored on disk
-    if (lseek(disk, 4, SEEK_SET) == -1)
+    if (fseek(file_pointer, 4, SEEK_SET) != 0)
     {
         fprintf(stderr, "Error: Unable to seek to index 4.\n");
         closeDisk(disk);
@@ -28,7 +43,7 @@ Bitmap *readBitmap(int disk)
 
     // Read the bitmap structure from disk
     Bitmap *bitmap = (Bitmap *)malloc(sizeof(Bitmap));
-    if (read(disk, bitmap, sizeof(Bitmap)) != sizeof(Bitmap))
+    if (fread(bitmap, sizeof(Bitmap), 1, file_pointer) != 1)
     {
         fprintf(stderr, "Error: Unable to read bitmap data.\n");
         closeDisk(disk);
@@ -47,7 +62,7 @@ Bitmap *readBitmap(int disk)
     }
 
     // Read the bitmap contents from disk
-    if (read(disk, bitmap->free_blocks, bitmap->bitmap_size) != bitmap->bitmap_size)
+    if (fread(bitmap->free_blocks, bitmap->bitmap_size, 1, file_pointer) != 1)
     {
         fprintf(stderr, "Error: Unable to read bitmap contents.\n");
         closeDisk(disk);
@@ -61,20 +76,60 @@ Bitmap *readBitmap(int disk)
 
 int writeBitmap(int disk, Bitmap *bitmap)
 {
-    // Go back to index 4(location where bitmap should be written to disk)
-    if (lseek(disk, 4, SEEK_SET) == -1)
+    char *blockData = (char*)malloc(BLOCKSIZE);
+    if (readBlock(disk, 0, blockData) == -1)
     {
-        fprintf(stderr, "Error: Unable to seek to index 4.\n");
+        fprintf(stderr, "Error: Unable to read block from disk.\n");
         closeDisk(disk);
-        return SEEK_ERROR;
+        return -1;
     }
-
+    printf("Block Data (in bytes) for writeBitmap: ");
+    for (int i = 0; i < BLOCKSIZE; i++)
+    {
+        printf("%02X ", (unsigned char)blockData[i]);
+    }
+    printf("\n");
     if (bitmap->bitmap_size + sizeof(Bitmap) > 232)
     {
         fprintf(stderr, "Error: Bitmap size too large.\n");
         closeDisk(disk);
         return BITMAP_SIZE_ERROR;
     }
+    if (memcpy(&blockData[4], bitmap, sizeof(Bitmap)) == NULL)
+    {
+        fprintf(stderr, "Error: Unable to copy bitmap data.\n");
+        closeDisk(disk);
+        return -1;
+    }
+    if (memcpy(&blockData[4 + sizeof(Bitmap)], bitmap->free_blocks, bitmap->bitmap_size) == NULL)
+    {
+        fprintf(stderr, "Error: Unable to copy bitmap contents.\n");
+        closeDisk(disk);
+        return -1;
+    }
+    printf("Block Data (in bytes) after memcpy: ");
+    for (int i = 0; i < BLOCKSIZE; i++)
+    {
+        printf("%02X ", (unsigned char)blockData[i]);
+    }
+    printf("\n");
+    if (writeBlock(disk, 0, blockData) == -1)
+    {
+        fprintf(stderr, "Error: Unable to write block to disk.\n");
+        closeDisk(disk);
+        return -1;
+    }
+    printf("\n");
+    // diskInfo *diskInfo = getDiskByFD(disk);
+    // FILE *file_pointer = diskInfo->file_pointer;
+    // Go back to index 4(location where bitmap should be written to disk)
+    // if (fseek(file_pointer, 4, SEEK_SET) != 0)
+    // {
+    //     fprintf(stderr, "Error: Unable to seek to index 4.\n");
+    //     closeDisk(disk);
+    //     return SEEK_ERROR;
+    // }
+
     printf("sizeof bitmap = %zu\n", sizeof(Bitmap));
     printf("Bitmap size: %d\n", bitmap->bitmap_size);
     printf("Bitmap contents: ");
@@ -83,20 +138,21 @@ int writeBitmap(int disk, Bitmap *bitmap)
         printf("%d ", bitmap->free_blocks[i]);
     }
     printf("\n");
-    if (write(disk, bitmap, sizeof(Bitmap)) != sizeof(Bitmap))
-    {
-        fprintf(stderr, "Error: Unable to write bitmap data.\n");
-        closeDisk(disk);
-        return WRITE_ERROR;
-    }
-    printf("Bitmap data written.\n");
-    if (write(disk, bitmap->free_blocks, bitmap->bitmap_size) != bitmap->bitmap_size)
-    {
-        fprintf(stderr, "Error: Unable to write bitmap data.\n");
-        closeDisk(disk);
-        return WRITE_ERROR;
-    }
-    printf("Bitmap contents written.\n");
+    // if (fwrite(bitmap, sizeof(Bitmap), 1, file_pointer) != 1)
+    // {
+    //     fprintf(stderr, "Error: Unable to write bitmap data.\n");
+    //     closeDisk(disk);
+    //     return WRITE_ERROR;
+    // }
+    // printf("Bitmap data written.\n");
+
+    // if (fwrite(bitmap->free_blocks, bitmap->bitmap_size, 1, file_pointer) != 1)
+    // {
+    //     fprintf(stderr, "Error: Unable to write bitmap data.\n");
+    //     closeDisk(disk);
+    //     return WRITE_ERROR;
+    // }
+    // printf("Bitmap contents written.\n");
     return 1;
 }
 
@@ -145,6 +201,11 @@ int tfs_mkfs(char *filename, int nBytes)
             closeDisk(disk);
             return DISK_ERROR;
         }
+        for (int i = 0; i < BLOCKSIZE; i++)
+        {
+            printf("%02X ", blockdata[i]);
+        }
+        printf("\n");
         blockdata = calloc(1, BLOCKSIZE);
         memset(&blockdata[0], 2, 1);
         memset(&blockdata[1], 0x44, 1);
@@ -211,6 +272,7 @@ int tfs_mount(char *diskname)
     printf("File system mounted successfully: %s\n", diskname);
     currMountedFS = (char *)malloc(strlen(diskname));
     strcpy(currMountedFS, diskname);
+    printf("before return\n");
     return 0;
 }
 
@@ -260,6 +322,11 @@ fileDescriptor tfs_openFile(char *name)
     int fd = fds++;
 
     Bitmap *bitmap = readBitmap(disk);
+    if (bitmap == NULL)
+    {
+        fprintf(stderr, "Error: Unable to read bitmap from disk.\n");
+        return DISK_READ_ERROR;
+    }
     int free_block = find_free_blocks_of_size(bitmap, 1);
     if (free_block == -2)
     {
