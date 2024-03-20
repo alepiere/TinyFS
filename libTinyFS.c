@@ -152,7 +152,7 @@ int tfs_mkfs(char *filename, int nBytes)
         int returnStatus = writeBitmap(disk, bitmap);
         if (returnStatus != 1)
         {
-            return returnStatus; //set to a specific error code later
+            return returnStatus; // set to a specific error code later
         }
         if (lseek(disk, ROOT_DIRECTORY_LOC, SEEK_SET) == -1)
         {
@@ -298,7 +298,15 @@ fileDescriptor tfs_openFile(char *name)
     allocate_block(bitmap, free_block);
     writeBitmap(disk, bitmap);
     // multiply by 256 to get index relative to the disk for later calculations
-    // we store it as
+    // we store it as a 16 bit number so we can store up to 65536 blocks
+    // seek to root directory block where data is written
+    if (lseek(disk, ROOT_DIRECTORY_LOC + 4, SEEK_SET) == -1)
+    {
+        fprintf(stderr, "Error: Unable to seek to root directory block.\n");
+        closeDisk(disk);
+        return SEEK_ERROR;
+    }
+
     int inode_index = free_block;
     FileEntry *newFileEntry = createFileEntry(name, fd, inode_index);
 
