@@ -8,6 +8,7 @@
 #include "fdLL.c"
 #include "bitmap.c"
 #include <sys/fcntl.h>
+#include <string.h>
 
 int mounted = 0;     // 1 if file system is mounted, 0 if not
 char *currMountedFS; // Name of the currently mounted file system
@@ -108,6 +109,7 @@ int tfs_mkfs(char *filename, int nBytes)
     setting magic numbers, initializing and writing the superblock and
     inodes, etc. Must return a specified success/error code. */
     disk = openDisk(filename, nBytes);
+    int num_blocks = nBytes / BLOCKSIZE;
     if (disk < 0)
     {
         fprintf(stderr, "Error: Unable to open disk file.\n");
@@ -115,43 +117,50 @@ int tfs_mkfs(char *filename, int nBytes)
     }
     else
     {
-        unsigned char data = 0x01; // Modify the data to be written
-        if (write(disk, &data, sizeof(data)) != sizeof(data))
+        char *blockdata = calloc(1, BLOCKSIZE);
+        memset(&blockdata[0], 4, 1);
+        memset(&blockdata[1], 0x44, 1);
+        for (int i = 0; i < num_blocks; i++)
         {
-            fprintf(stderr, "Error: Unable to write physical data.\n");
-            return WRITE_ERROR;
-        }
-        data = 0x44; // Modify data to write to be magic number
-        if (write(disk, &data, sizeof(data)) != sizeof(data))
-        {
-            fprintf(stderr, "Error: Unable to write physical data.\n");
-            return WRITE_ERROR;
-        }
-        // Initialize the rest of the data to 0x00
-        unsigned char zeroData = 0x00;
-        // put magic number and headers in free blocks LOOOOOOOOOOOOOOOOOOOK
-        // calculate the disk size and write the rest of the data
-        off_t diskSize = nBytes;
-        // 4 is next empty block (block type = 0, magic num = 1, block address = 2, empty = 3)
-        int remainingBytes = diskSize - 2;
-        int start_location = lseek(disk, 0, SEEK_CUR);
-        for (int i = 0; i < remainingBytes; i++)
-        {
-            if (write(disk, &zeroData, sizeof(zeroData)) != sizeof(zeroData))
+            if (writeBlock(disk, i, blockdata) == -1)
             {
-                fprintf(stderr, "Error: Unable to write physical data.\n");
-                return WRITE_ERROR;
+                fprintf(stderr, "Error: Unable to write block to disk.\n");
+                closeDisk(disk);
+                return DISK_ERROR;
             }
-            off_t currentOffset = lseek(disk, 0, SEEK_CUR); // Get current offset
-            if (currentOffset == -1)
-            {
-                fprintf(stderr, "Error: Unable to get current file offset.\n");
-                return SEEK_ERROR;
-            }
-            // printf("%d bytes of '0x00' written at location %ld with start location %d\n", i + 1, currentOffset, start_location);
         }
-
+        for (int i = 0; i < BLOCKSIZE; i++)
+        {
+            printf("%02X ", blockdata[i]);
+        }
+        printf("\n");
+        blockdata = calloc(1, BLOCKSIZE);
+        memset(&blockdata[0], 1, 1);
+        memset(&blockdata[1], 0x44, 1);
+        // manually write superblock to disk
+        if (writeBlock(disk, 0, blockdata) == -1)
+        {
+            fprintf(stderr, "Error: Unable to write block to disk.\n");
+            closeDisk(disk);
+            return DISK_ERROR;
+        }
+        blockdata = calloc(1, BLOCKSIZE);
+        memset(&blockdata[0], 2, 1);
+        memset(&blockdata[1], 0x44, 1);
+        for (int i = 0; i < BLOCKSIZE; i++)
+        {
+            printf("%02X ", blockdata[i]);
+        }
+        printf("\n");
+        // manually write root directory to disk
+        if (writeBlock(disk, 1, blockdata) == -1)
+        {
+            fprintf(stderr, "Error: Unable to write block to disk.\n");
+            closeDisk(disk);
+            return DISK_ERROR;
+        }
         // Start the bitmap
+        int diskSize = nBytes;
         Bitmap *bitmap = create_bitmap(diskSize - BLOCKSIZE, BLOCKSIZE);
         size_t data_size = sizeof(Bitmap) + bitmap->bitmap_size;
         // bit map only able to hold max of 232 * 8 blocks worth of data
@@ -162,53 +171,6 @@ int tfs_mkfs(char *filename, int nBytes)
         {
             return returnStatus; // set to a specific error code later
         }
-        if (lseek(disk, ROOT_DIRECTORY_LOC, SEEK_SET) == -1)
-        {
-            fprintf(stderr, "Error: Unable to seek to root directory block.\n");
-            closeDisk(disk);
-            return SEEK_ERROR;
-        }
-        data = 0x02; // 2 for inode block
-        if (write(disk, &data, sizeof(data)) != sizeof(data))
-        {
-            fprintf(stderr, "Error: Unable to write physical data.\n");
-            return WRITE_ERROR;
-        }
-        data = 0x44; // Modify data to write to be magic number
-        if (write(disk, &data, sizeof(data)) != sizeof(data))
-        {
-            fprintf(stderr, "Error: Unable to write physical data.\n");
-            return WRITE_ERROR;
-        }
-
-        off_t block_offset = 512;
-        for (int i = 0; block_offset + (256 * i) < nBytes; i++)
-        {
-            if (lseek(disk, block_offset + (256 * i), SEEK_SET) == -1)
-            {
-                fprintf(stderr, "Error: Unable to seek to free block.\n");
-                closeDisk(disk);
-                return SEEK_ERROR;
-            }
-            // write block type (4 = free block)
-            data = 0x04;
-            if (write(disk, &data, sizeof(data)) != sizeof(data))
-            {
-                fprintf(stderr, "Error: Unable to write block type to free block.\n");
-                closeDisk(disk);
-                return WRITE_ERROR;
-            }
-            // write magic number (0x44)
-            data = 0x44;
-            if (write(disk, &data, sizeof(data)) != sizeof(data))
-            {
-                fprintf(stderr, "Error: Unable to write magic number to free block.\n");
-                closeDisk(disk);
-                return WRITE_ERROR;
-            }
-        }
-
-        // make success code for mkfs
     }
     return 1; // make meaningfull succss error code
 }
@@ -308,12 +270,12 @@ fileDescriptor tfs_openFile(char *name)
     // multiply by 256 to get index relative to the disk for later calculations
     // we store it as a 16 bit number so we can store up to 65536 blocks
     // seek to root directory block where data is written
-    if (lseek(disk, ROOT_DIRECTORY_LOC + 4, SEEK_SET) == -1)
-    {
-        fprintf(stderr, "Error: Unable to seek to root directory block.\n");
-        closeDisk(disk);
-        return SEEK_ERROR;
-    }
+    // if (lseek(disk, ROOT_DIRECTORY_LOC + 4, SEEK_SET) == -1)
+    // {
+    //     fprintf(stderr, "Error: Unable to seek to root directory block.\n");
+    //     closeDisk(disk);
+    //     return SEEK_ERROR;
+    // }
 
     int inode_index = free_block;
     FileEntry *newFileEntry = createFileEntry(name, fd, inode_index);
@@ -322,56 +284,76 @@ fileDescriptor tfs_openFile(char *name)
     uint16_t byte_inode = (uint16_t)inode_index;
     // we will write to inode mappings (inode offset) to bytes after 4th byte(index 4 onward)
     uint16_t value;
-    unsigned char buffer;
+    unsigned char buffer[sizeof(uint16_t)];
+    disk = openDisk(currMountedFS, 0);
+    int flags = fcntl(disk, F_GETFD);
+    if (flags == -1)
+    {
+        perror("fcntl");
+        return -1; // Error occurred
+    }
+    printf("file is open\n"); // File is open
+    char *inodeData = malloc(BLOCKSIZE);
+    if (readBlock(disk, 1, inodeData) == -1)
+    {
+        fprintf(stderr, "Error: Unable to read inode data from disk.\n");
+        closeDisk(disk);
+        return DISK_READ_ERROR;
+    }
     for (int i = 0; i < 250; i += 2)
     {
-        off_t currentOffset = lseek(disk, 0, SEEK_CUR); // Get current offset
-        if (currentOffset == -1)
+        // + 4 to skip the first 4 bytes of the block which is meta data
+        unsigned char byte1 = inodeData[i + 4];
+        unsigned char byte2 = inodeData[i + 5];
+        int combinedInt = (byte1 << 8) | byte2;
+        printf("combined int is %d\n", combinedInt);
+        if (combinedInt == 0)
         {
-            fprintf(stderr, "Error: Unable to get current file offset.\n");
-            return SEEK_ERROR;
+            printf("found free inode\n");
+            inodeData[i + 4] = byte_inode >> 8;
+            inodeData[i + 5] = byte_inode & 0xFF;
+            writeBlock(disk, 1, inodeData);
         }
-        unsigned char byteseee = 0x00;
-        int writee = (disk, byteseee, sizeof(byteseee));
-        if (writee != sizeof(byteseee))
-        {
-            fprintf(stderr, "Error: Unable to write zero bytes. %d\n", writee);
-            return WRITE_ERROR;
-        }
-        writee = write(disk, byteseee, sizeof(byteseee));
-        if (writee != sizeof(byteseee))
-        {
-            fprintf(stderr, "Error: Unable to write zero bytes wut. %d\n", writee);
-            return WRITE_ERROR;
-        }
-        if (lseek(disk, -2, SEEK_CUR) == -1)
-        {
-            fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
-            return SEEK_ERROR;
-        }
-        int datasize = read(disk, buffer, sizeof(buffer));
-        if (datasize != sizeof(&value))
-        {
-            fprintf(stderr, "buffer data is %s and size is %d and other size is %d\n", &value, sizeof(value), datasize);
-            fprintf(stderr, "Error: Unable to read physical data at offset %ld. %d\n", currentOffset, disk);
-            return DISK_READ_ERROR;
-        }
-        if (value == 0x0000)
-        {
-            // The next two bits are not 0x00
-            // so write new inode index to this location
-            if (lseek(disk, -2, SEEK_CUR) == -1)
-            {
-                fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
-                return SEEK_ERROR;
-            }
-            if (write(disk, &byte_inode, sizeof(byte_inode)) != sizeof(byte_inode))
-            {
-                fprintf(stderr, "Error: Unable to write physical data.\n");
-                return WRITE_ERROR;
-            }
-            break;
-        }
+        // if (lseek(disk, 2, SEEK_CUR) == -1)
+        // {
+        //     fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
+        //     return SEEK_ERROR;
+        // }
+        // off_t currentOffset = lseek(disk, 0, SEEK_CUR); // Get current offset
+        // if (lseek(disk, 1, SEEK_CUR) == -1)
+        //{
+        //     fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
+        //     return SEEK_ERROR;
+        // }
+        // if (currentOffset == -1)
+        // {
+        //     fprintf(stderr, "Error: Unable to get current file offset.\n");
+        //     return SEEK_ERROR;
+        // }
+        // int datasize = read(disk, buffer, sizeof(buffer));
+        // printf("buffer data is %s and size is %d and other size is %d\n", buffer, sizeof(value), datasize);
+        // if (datasize != sizeof(buffer))
+        // {
+        //     fprintf(stderr, "buffer data is %s and size is %d and other size is %d\n", buffer, sizeof(value), datasize);
+        //     fprintf(stderr, "Error: Unable to read physical data at offset %ld. %d\n", currentOffset, disk);
+        //     return DISK_READ_ERROR;
+        // }
+        // if (value == 0x0000)
+        // {
+        //     // The next two bits are not 0x00
+        //     // so write new inode index to this location
+        //     if (lseek(disk, -2, SEEK_CUR) == -1)
+        //     {
+        //         fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
+        //         return SEEK_ERROR;
+        //     }
+        //     if (write(disk, &byte_inode, sizeof(byte_inode)) != sizeof(byte_inode))
+        //     {
+        //         fprintf(stderr, "Error: Unable to write physical data.\n");
+        //         return WRITE_ERROR;
+        //     }
+        //     break;
+        // }
     }
     // implement logic if we run out of space for inodes by allocating a new block for more inode space
 
@@ -419,50 +401,25 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
         return FREE_BLOCK_ERROR;
     }
     // set write block in terms of disk index
-    int write_offset = free_block * 256;
+    int write_offset = free_block;
     int data_written = 0;
+    int offset = 0;
+    char blockdata[BLOCKSIZE];
     while (data_written <= size)
     {
-        if (lseek(disk, write_offset, SEEK_SET) == -1)
-        {
-            fprintf(stderr, "Error: Unable to seek to root directory block.\n");
-            closeDisk(disk);
-            return SEEK_ERROR;
-        }
-        unsigned char data = 0x03; // 3 for file extent block
-        if (write(disk, &data, sizeof(data)) != sizeof(data))
-        {
-            fprintf(stderr, "Error: Unable to write physical data.\n");
-            return WRITE_ERROR;
-        }
-        // index to the where data starts (index 4)
-        if (lseek(disk, 3, SEEK_CUR) == -1)
-        {
-            fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
-            return SEEK_ERROR;
-        }
-        // write the data (which is 4 less than blocksize because 4 bytes used for metadata)
-        if (write(disk, buffer, BLOCKSIZE - 4) != BLOCKSIZE - 4)
-        {
-            fprintf(stderr, "Error: Unable to write physical data.\n");
-            return WRITE_ERROR;
-        }
+        memset(&blockdata[0], 3, 1);
+        memcpy(&blockdata[4], buffer + offset, 252);
         data_written += BLOCKSIZE - 4;
         if (data_written < size)
         {
-            if (lseek(disk, write_offset + 2, SEEK_SET) == -1)
-            {
-                fprintf(stderr, "Error: Unable to seek to next block position.\n");
-                closeDisk(disk);
-                return SEEK_ERROR;
-            }
-            // write block index divided by 256 so it takes less bits to store
-            uint16_t next_block = (uint16_t)(write_offset / 256 + 1);
-            if (write(disk, &next_block, sizeof(next_block)) != sizeof(next_block))
-            {
-                fprintf(stderr, "Error: Unable to write next block index data.\n");
-                return WRITE_ERROR;
-            }
+            // set the location of the next block
+            memset(&blockdata[2], write_offset + 1, 1);
+        }
+        if (writeBlock(disk, write_offset, blockdata) == -1)
+        {
+            fprintf(stderr, "Error: Unable to write block to disk.\n");
+            closeDisk(disk);
+            return DISK_ERROR;
         }
         write_offset += BLOCKSIZE;
     }
