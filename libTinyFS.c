@@ -149,9 +149,32 @@ int tfs_mkfs(char *filename, int nBytes)
         // bit map only able to hold max of 232 * 8 blocks worth of data
         // 1856 should be enough blocks to store all the data on our system and if we need more in the future
         // we can alter how bitmap is store structurally
-        return writeBitmap(disk, bitmap);
+        int returnStatus = writeBitmap(disk, bitmap);
+        if (returnStatus != 1)
+        {
+            return returnStatus; //set to a specific error code later
+        }
+        if (lseek(disk, ROOT_DIRECTORY_LOC, SEEK_SET) == -1)
+        {
+            fprintf(stderr, "Error: Unable to seek to root directory block.\n");
+            closeDisk(disk);
+            return SEEK_ERROR;
+        }
+        unsigned char data = 0x02; // 2 for inode block
+        if (write(disk, &data, sizeof(data)) != sizeof(data))
+        {
+            fprintf(stderr, "Error: Unable to write physical data.\n");
+            return WRITE_ERROR;
+        }
+        data = 0x44; // Modify data to write to be magic number
+        if (write(disk, &data, sizeof(data)) != sizeof(data))
+        {
+            fprintf(stderr, "Error: Unable to write physical data.\n");
+            return WRITE_ERROR;
+        }
         // make success code for mkfs
     }
+    return 1; // make meaningfull succss error code
 }
 
 int tfs_mount(char *diskname)
@@ -251,29 +274,6 @@ fileDescriptor tfs_openFile(char *name)
     int inode_index = free_block;
     FileEntry *newFileEntry = createFileEntry(name, fd, inode_index);
 
-    if (lseek(disk, ROOT_DIRECTORY_LOC, SEEK_SET) == -1)
-    {
-        fprintf(stderr, "Error: Unable to seek to root directory block.\n");
-        closeDisk(disk);
-        return SEEK_ERROR;
-    }
-    unsigned char data = 0x02; // 2 for inode block
-    if (write(disk, &data, sizeof(data)) != sizeof(data))
-    {
-        fprintf(stderr, "Error: Unable to write physical data.\n");
-        return WRITE_ERROR;
-    }
-    data = 0x44; // Modify data to write to be magic number
-    if (write(disk, &data, sizeof(data)) != sizeof(data))
-    {
-        fprintf(stderr, "Error: Unable to write physical data.\n");
-        return WRITE_ERROR;
-    }
-    if (lseek(disk, 2, SEEK_CUR) == -1)
-    {
-        fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
-        return SEEK_ERROR;
-    }
     // ensure that inode is written as two bytes so we can write up to block 65536 for inodes
     uint16_t byte_inode = (uint16_t)inode_index;
     // we will write to inode mappings (inode offset) to bytes after 4th byte(index 4 onward)
@@ -302,7 +302,7 @@ fileDescriptor tfs_openFile(char *name)
             break;
         }
     }
-    //implement logic if we run out of space for inodes by allocating a new block for more inode space
+    // implement logic if we run out of space for inodes by allocating a new block for more inode space
 
     insertFileEntry(openFileTable, newFileEntry);
 
@@ -321,20 +321,72 @@ int tfs_closeFile(fileDescriptor FD)
     return result;
 }
 
-int tfs_writeFile(fileDescriptor FD, char *buffer, int size){
-/* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
-file’s content, to the file system. Previous content (if any) will be
-completely lost. Sets the file pointer to 0 (the start of file) when
-done. Returns success/error codes. */
+int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
+{
+    /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
+    file’s content, to the file system. Previous content (if any) will be
+    completely lost. Sets the file pointer to 0 (the start of file) when
+    done. Returns success/error codes. */
+    // subtract 4 from block_size
     Bitmap *bitmap = readBitmap(disk);
-    int num_blocks = (size + BLOCKSIZE - 1) / BLOCKSIZE;
+    int num_blocks = (size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     int free_block = find_free_blocks_of_size(bitmap, num_blocks);
+    if (free_block == -2)
+    {
+        fprintf(stderr, "Error: No free blocks available.\n");
+        return FREE_BLOCK_ERROR;
+    }
+    // set write block in terms of disk index
+    int write_offset = free_block * 256;
+    int data_written = 0;
+    while (data_written <= size)
+    {
+        if (lseek(disk, write_offset, SEEK_SET) == -1)
+        {
+            fprintf(stderr, "Error: Unable to seek to root directory block.\n");
+            closeDisk(disk);
+            return SEEK_ERROR;
+        }
+        unsigned char data = 0x03; // 3 for file extent block
+        if (write(disk, &data, sizeof(data)) != sizeof(data))
+        {
+            fprintf(stderr, "Error: Unable to write physical data.\n");
+            return WRITE_ERROR;
+        }
+        // index to the where data starts (index 4)
+        if (lseek(disk, 3, SEEK_CUR) == -1)
+        {
+            fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
+            return SEEK_ERROR;
+        }
+        // write the data (which is 4 less than blocksize because 4 bytes used for metadata)
+        if (write(disk, buffer, BLOCKSIZE - 4) != BLOCKSIZE - 4)
+        {
+            fprintf(stderr, "Error: Unable to write physical data.\n");
+            return WRITE_ERROR;
+        }
+        data_written += BLOCKSIZE - 4;
+        if (data_written < size)
+        {
+            if (lseek(disk, write_offset + 2, SEEK_SET) == -1)
+            {
+                fprintf(stderr, "Error: Unable to seek to next block position.\n");
+                closeDisk(disk);
+                return SEEK_ERROR;
+            }
+            // write block index divided by 256 so it takes less bits to store
+            uint16_t next_block = (uint16_t)(write_offset / 256);
+            if (write(disk, ))
+        }
+        write_offset += BLOCKSIZE;
+    }
     return 1;
 }
 
-int tfs_deleteFile(fileDescriptor FD){
-/* deletes a file and marks its blocks as free on disk. */
+int tfs_deleteFile(fileDescriptor FD)
+{
+    /* deletes a file and marks its blocks as free on disk. */
     if (!mounted)
     {
         return MOUNTED_ERROR;
@@ -346,7 +398,6 @@ int tfs_deleteFile(fileDescriptor FD){
     tfs_closeFile(FD); // remove from open file table and free memory
     return 1;
 }
-
 
 int tfs_readByte(fileDescriptor FD, char *buffer){
 /* reads one byte from the file and copies it to buffer, using the
