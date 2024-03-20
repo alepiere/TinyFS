@@ -315,7 +315,7 @@ fileDescriptor tfs_openFile(char *name)
     // we will write to inode mappings (inode offset) to bytes after 4th byte(index 4 onward)
     uint16_t value;
     unsigned char buffer[sizeof(uint16_t)];
-    disk = openDisk(currMountedFS, 0);
+    // disk = openDisk(currMountedFS, 0);
     for (int i = 0; i < 250; i += 2)
     {
         int datasize;
