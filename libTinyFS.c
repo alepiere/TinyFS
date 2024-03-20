@@ -322,40 +322,18 @@ fileDescriptor tfs_openFile(char *name)
     uint16_t byte_inode = (uint16_t)inode_index;
     // we will write to inode mappings (inode offset) to bytes after 4th byte(index 4 onward)
     uint16_t value;
-    unsigned char buffer;
+    unsigned char buffer[sizeof(uint16_t)];
+    disk = openDisk(currMountedFS, 0);
     for (int i = 0; i < 250; i += 2)
     {
-        off_t currentOffset = lseek(disk, 0, SEEK_CUR); // Get current offset
-        if (currentOffset == -1)
-        {
-            fprintf(stderr, "Error: Unable to get current file offset.\n");
-            return SEEK_ERROR;
-        }
-        unsigned char byteseee = 0x00;
-        int writee = (disk, byteseee, sizeof(byteseee));
-        if (writee != sizeof(byteseee))
-        {
-            fprintf(stderr, "Error: Unable to write zero bytes. %d\n", writee);
-            return WRITE_ERROR;
-        }
-        writee = write(disk, byteseee, sizeof(byteseee));
-        if (writee != sizeof(byteseee))
-        {
-            fprintf(stderr, "Error: Unable to write zero bytes wut. %d\n", writee);
-            return WRITE_ERROR;
-        }
-        if (lseek(disk, -2, SEEK_CUR) == -1)
-        {
-            fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
-            return SEEK_ERROR;
-        }
         int datasize = read(disk, buffer, sizeof(buffer));
-        if (datasize != sizeof(&value))
+        if (datasize != sizeof(buffer))
         {
-            fprintf(stderr, "buffer data is %s and size is %d and other size is %d\n", &value, sizeof(value), datasize);
-            fprintf(stderr, "Error: Unable to read physical data at offset %ld. %d\n", currentOffset, disk);
+            fprintf(stderr, "buffer data is %s and size is %d and other size is %d\n", buffer, sizeof(value), datasize);
+            fprintf(stderr, "Error: Unable to read physical data.\n");
             return DISK_READ_ERROR;
         }
+        printf("buffer is %d eee\n", sizeof(datasize));
         if (value == 0x0000)
         {
             // The next two bits are not 0x00
@@ -498,7 +476,32 @@ int tfs_readByte(fileDescriptor FD, char *buffer)
 
     // Find the file entry in the open file table
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
-    return 1; // make success message thats meaningful
+    if (file == NULL) {
+        return FILE_NOT_FOUND_ERROR;
+    }
+
+    // Check if the file pointer is already past the end of the file
+    if (file->offset >= file->file_size) {
+        return END_OF_FILE_ERROR;
+    }
+
+    // Seek to the current file pointer location
+    off_t file_offset = ROOT_DIRECTORY_LOC + (file->inode_index * BLOCKSIZE) + file->offset;
+    if (lseek(disk, file_offset, SEEK_SET) == -1) {
+        fprintf(stderr, "Error: Unable to seek to file pointer location.\n");
+        return SEEK_ERROR;
+    }
+
+    // Read one byte from the file and copy it to the buffer
+    if (read(disk, buffer, 1) != 1) {
+        fprintf(stderr, "Error: Unable to read byte from file.\n");
+        return READ_ERROR;
+    }
+
+    // Increment the file pointer location
+    file->offset++;
+
+    return 1; // Success
 }
 
 int tfs_seek(fileDescriptor FD, int offset)
