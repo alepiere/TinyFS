@@ -463,7 +463,7 @@ tfs_readByte() should return an error and not increment the file pointer.
 
     // Find the file entry in the open file table
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
-
+    return 1; //make success message thats meaningful
 }
 
 int tfs_seek(fileDescriptor FD, int offset)
@@ -476,6 +476,7 @@ int tfs_seek(fileDescriptor FD, int offset)
     }
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     file->offset = offset;
+    return 1; //make success message thats meainful
 }
 
 int main()
