@@ -9,7 +9,6 @@
 #include "bitmap.c"
 #include <sys/fcntl.h>
 
-
 int mounted = 0;     // 1 if file system is mounted, 0 if not
 char *currMountedFS; // Name of the currently mounted file system
 int fds = 1;         // File descriptor counter
@@ -247,9 +246,63 @@ fileDescriptor tfs_openFile(char *name)
     }
     allocate_block(bitmap, free_block);
     writeBitmap(disk, bitmap);
-    // multiply by 256 to get index relative to the disk
-    int inode_index = free_block * 256;
+    // multiply by 256 to get index relative to the disk for later calculations
+    // we store it as
+    int inode_index = free_block;
     FileEntry *newFileEntry = createFileEntry(name, fd, inode_index);
+
+    if (lseek(disk, ROOT_DIRECTORY_LOC, SEEK_SET) == -1)
+    {
+        fprintf(stderr, "Error: Unable to seek to root directory block.\n");
+        closeDisk(disk);
+        return SEEK_ERROR;
+    }
+    unsigned char data = 0x02; // 2 for inode block
+    if (write(disk, &data, sizeof(data)) != sizeof(data))
+    {
+        fprintf(stderr, "Error: Unable to write physical data.\n");
+        return WRITE_ERROR;
+    }
+    data = 0x44; // Modify data to write to be magic number
+    if (write(disk, &data, sizeof(data)) != sizeof(data))
+    {
+        fprintf(stderr, "Error: Unable to write physical data.\n");
+        return WRITE_ERROR;
+    }
+    if (lseek(disk, 2, SEEK_CUR) == -1)
+    {
+        fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
+        return SEEK_ERROR;
+    }
+    // ensure that inode is written as two bytes so we can write up to block 65536 for inodes
+    uint16_t byte_inode = (uint16_t)inode_index;
+    // we will write to inode mappings (inode offset) to bytes after 4th byte(index 4 onward)
+    for (int i = 0; i < 250; i += 2)
+    {
+        uint16_t value;
+        if (read(disk, &value, sizeof(value)) != sizeof(value))
+        {
+            fprintf(stderr, "Error: Unable to read physical data.\n");
+            return DISK_READ_ERROR;
+        }
+        if (value == 0x0000)
+        {
+            // The next two bits are not 0x00
+            // so write new inode index to this location
+            if (lseek(disk, -2, SEEK_CUR) == -1)
+            {
+                fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
+                return SEEK_ERROR;
+            }
+            if (write(disk, &byte_inode, sizeof(byte_inode)) != sizeof(byte_inode))
+            {
+                fprintf(stderr, "Error: Unable to write physical data.\n");
+                return WRITE_ERROR;
+            }
+            break;
+        }
+    }
+    //implement logic if we run out of space for inodes by allocating a new block for more inode space
 
     insertFileEntry(openFileTable, newFileEntry);
 
@@ -268,11 +321,15 @@ int tfs_closeFile(fileDescriptor FD)
     return result;
 }
 
-int tfs_writeFile(fileDescriptor FD, char *buffer, int size);
+int tfs_writeFile(fileDescriptor FD, char *buffer, int size){
 /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
 file’s content, to the file system. Previous content (if any) will be
 completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes. */
+    Bitmap *bitmap = readBitmap(disk);
+    int num_blocks = (size + BLOCKSIZE - 1) / BLOCKSIZE;
+    return 1;
+}
 
 int tfs_deleteFile(fileDescriptor FD);
 /* deletes a file and marks its blocks as free on disk. */

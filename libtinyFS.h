@@ -15,3 +15,7 @@ typedef int fileDescriptor;
 #define INODE 2
 #define FILE_EXTENT 3
 #define FREE_BLOCK 4
+
+//block locations
+#define SUPERBLOCK_LOC 0
+#define ROOT_DIRECTORY_LOC 256
