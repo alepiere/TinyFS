@@ -328,6 +328,7 @@ completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes. */
     Bitmap *bitmap = readBitmap(disk);
     int num_blocks = (size + BLOCKSIZE - 1) / BLOCKSIZE;
+    FileEntry *file = findFileEntryByFD(openFileTable, FD);
     return 1;
 }
 
