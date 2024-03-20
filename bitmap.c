@@ -57,6 +57,15 @@ void free_block(Bitmap *bitmap, int block_index) {
     bitmap->free_blocks[byte_index] |= (1 << bit_index); // Set the block to 1 to indicate now free
 }
 
+void free_num_blocks(Bitmap *bitmap, int start_block_index, int num_blocks) {
+    for (int i = 0; i < num_blocks; i++) {
+        int block_index = start_block_index + i;
+        int byte_index = block_index / 8;
+        int bit_index = block_index % 8;
+        bitmap->free_blocks[byte_index] |= (1 << bit_index); // Set the block to 1 to indicate now free
+    }
+}
+
 // function to see if there are contigious blocks of memory of a set size
 int find_free_blocks_of_size(Bitmap *bitmap, int block_size) {
     int free_blocks = 0;

@@ -274,8 +274,20 @@ file’s content, to the file system. Previous content (if any) will be
 completely lost. Sets the file pointer to 0 (the start of file) when
 done. Returns success/error codes. */
 
-int tfs_deleteFile(fileDescriptor FD);
+int tfs_deleteFile(fileDescriptor FD){
 /* deletes a file and marks its blocks as free on disk. */
+    if (!mounted)
+    {
+        return MOUNTED_ERROR;
+    }
+    Bitmap *bitmap = readBitmap(disk);
+    FileEntry *deleteMe = findFileEntryByFD(openFileTable, FD);
+    free_num_blocks(bitmap, deleteMe->inode_index, deleteMe->file_size);
+    writeBitmap(disk, bitmap);
+    tfs_closeFile(FD); // remove from open file table and free memory
+    return 1;
+}
+
 
 int tfs_readByte(fileDescriptor FD, char *buffer);
 /* reads one byte from the file and copies it to buffer, using the
