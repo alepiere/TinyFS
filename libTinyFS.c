@@ -134,6 +134,7 @@ int tfs_mkfs(char *filename, int nBytes)
         off_t diskSize = nBytes;
         // 4 is next empty block (block type = 0, magic num = 1, block address = 2, empty = 3)
         int remainingBytes = diskSize - 2;
+        int start_location = lseek(disk, 0, SEEK_CUR);
         for (int i = 0; i < remainingBytes; i++)
         {
             if (write(disk, &zeroData, sizeof(zeroData)) != sizeof(zeroData))
@@ -141,6 +142,13 @@ int tfs_mkfs(char *filename, int nBytes)
                 fprintf(stderr, "Error: Unable to write physical data.\n");
                 return WRITE_ERROR;
             }
+            off_t currentOffset = lseek(disk, 0, SEEK_CUR); // Get current offset
+            if (currentOffset == -1)
+            {
+                fprintf(stderr, "Error: Unable to get current file offset.\n");
+                return SEEK_ERROR;
+            }
+            // printf("%d bytes of '0x00' written at location %ld with start location %d\n", i + 1, currentOffset, start_location);
         }
 
         // Start the bitmap
@@ -174,7 +182,7 @@ int tfs_mkfs(char *filename, int nBytes)
         }
 
         off_t block_offset = 512;
-        for (int i = 0; block_offset + (256 * i) < nBytes; i ++) 
+        for (int i = 0; block_offset + (256 * i) < nBytes; i++)
         {
             if (lseek(disk, block_offset + (256 * i), SEEK_SET) == -1)
             {
@@ -315,23 +323,13 @@ fileDescriptor tfs_openFile(char *name)
     // we will write to inode mappings (inode offset) to bytes after 4th byte(index 4 onward)
     uint16_t value;
     unsigned char buffer[sizeof(uint16_t)];
-    // disk = openDisk(currMountedFS, 0);
     for (int i = 0; i < 250; i += 2)
     {
-        int datasize;
-        printf("buffer is %d eee\n", sizeof(datasize));
-        datasize = read(disk, buffer, sizeof(buffer));
+        int datasize = read(disk, buffer, sizeof(buffer));
+        printf("datasize is %d\n", datasize);
         if (datasize != sizeof(buffer))
         {
-            fprintf(stderr, "buffer data is %s and size is %lu and other size is %d\n", buffer, sizeof(value), datasize);
-            fprintf(stderr, "Error: Unable to read physical data.\n");
-            return DISK_READ_ERROR;
-        }
-        printf("buffer is %s eee\n", buffer);
-        datasize = read(disk, buffer, sizeof(buffer));
-        if (datasize != sizeof(buffer))
-        {
-            fprintf(stderr, "buffer data is %s and size is %lu and other size is %d\n", buffer, sizeof(value), datasize);
+            fprintf(stderr, "buffer data is %s and size is %d and other size is %d\n", buffer, sizeof(value), datasize);
             fprintf(stderr, "Error: Unable to read physical data.\n");
             return DISK_READ_ERROR;
         }
@@ -382,13 +380,13 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     Bitmap *bitmap = readBitmap(disk);
     int num_blocks = (size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
-    //check if there is data already written to the file and if so deallocate it
+    // check if there is data already written to the file and if so deallocate it
     if (file->file_size > 0)
     {
         int prev_num_blocks = (file->file_size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
-        //deallocate previous blocks allocated to a file
-        free_num_blocks(bitmap, file->inode_index, prev_num_blocks); 
-        //update file size to be 0 now temporarily until we write new data
+        // deallocate previous blocks allocated to a file
+        free_num_blocks(bitmap, file->inode_index, prev_num_blocks);
+        // update file size to be 0 now temporarily until we write new data
         file->file_size = 0;
     }
     // find free blocks for new data for file
@@ -464,13 +462,15 @@ int tfs_deleteFile(fileDescriptor FD)
     return 1;
 }
 
-int tfs_readByte(fileDescriptor FD, char *buffer){
-/* reads one byte from the file and copies it to buffer, using the
-current file pointer location and incrementing it by one upon success.
-If the file pointer is already past the end of the file then
-tfs_readByte() should return an error and not increment the file pointer.
-*/
-    if (!mounted) {
+int tfs_readByte(fileDescriptor FD, char *buffer)
+{
+    /* reads one byte from the file and copies it to buffer, using the
+    current file pointer location and incrementing it by one upon success.
+    If the file pointer is already past the end of the file then
+    tfs_readByte() should return an error and not increment the file pointer.
+    */
+    if (!mounted)
+    {
         return MOUNTED_ERROR;
     }
 
@@ -514,7 +514,7 @@ int tfs_seek(fileDescriptor FD, int offset)
     }
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     file->offset = offset;
-    return 1; //make success message thats meainful
+    return 1; // make success message thats meainful
 }
 
 int main()
