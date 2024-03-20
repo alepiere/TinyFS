@@ -74,28 +74,28 @@ int writeBitmap(int disk, Bitmap *bitmap)
         closeDisk(disk);
         return BITMAP_SIZE_ERROR;
     }
-    printf("sizeof bitmap = %zu\n", sizeof(Bitmap));
-    printf("Bitmap size: %d\n", bitmap->bitmap_size);
-    printf("Bitmap contents: ");
-    for (int i = 0; i < bitmap->bitmap_size; i++)
-    {
-        printf("%d ", bitmap->free_blocks[i]);
-    }
-    printf("\n");
+    // printf("sizeof bitmap = %zu\n", sizeof(Bitmap));
+    // printf("Bitmap size: %d\n", bitmap->bitmap_size);
+    // printf("Bitmap contents: ");
+    // for (int i = 0; i < bitmap->bitmap_size; i++)
+    // {
+    //     printf("%d ", bitmap->free_blocks[i]);
+    // }
+    // printf("\n");
     if (write(disk, bitmap, sizeof(Bitmap)) != sizeof(Bitmap))
     {
         fprintf(stderr, "Error: Unable to write bitmap data.\n");
         closeDisk(disk);
         return WRITE_ERROR;
     }
-    printf("Bitmap data written.\n");
+    // printf("Bitmap data written.\n");
     if (write(disk, bitmap->free_blocks, bitmap->bitmap_size) != bitmap->bitmap_size)
     {
         fprintf(stderr, "Error: Unable to write bitmap data.\n");
         closeDisk(disk);
         return WRITE_ERROR;
     }
-    printf("Bitmap contents written.\n");
+    // printf("Bitmap contents written.\n");
     return 1;
 }
 
@@ -326,14 +326,14 @@ fileDescriptor tfs_openFile(char *name)
     for (int i = 0; i < 250; i += 2)
     {
         int datasize = read(disk, buffer, sizeof(buffer));
-        printf("datasize is %d\n", datasize);
+        // printf("datasize is %d\n", datasize);
         if (datasize != sizeof(buffer))
         {
-            fprintf(stderr, "buffer data is %s and size is %d and other size is %d\n", buffer, sizeof(value), datasize);
+            // fprintf(stderr, "buffer data is %s and size is %lu and other size is %d\n", buffer, sizeof(value), datasize);
             fprintf(stderr, "Error: Unable to read physical data.\n");
             return DISK_READ_ERROR;
         }
-        printf("buffer is %d eee\n", sizeof(datasize));
+        printf("buffer is %lu eee\n", sizeof(datasize));
         if (value == 0x0000)
         {
             // The next two bits are not 0x00
