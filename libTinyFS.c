@@ -313,6 +313,8 @@ fileDescriptor tfs_openFile(char *name)
     // ensure that inode is written as two bytes so we can write up to block 65536 for inodes
     uint16_t byte_inode = (uint16_t)inode_index;
     // we will write to inode mappings (inode offset) to bytes after 4th byte(index 4 onward)
+    uint16_t value;
+    unsigned char buffer[sizeof(uint16_t)];
     for (int i = 0; i < 250; i += 2)
     {
         uint16_t value;
@@ -461,32 +463,6 @@ tfs_readByte() should return an error and not increment the file pointer.
 
     // Find the file entry in the open file table
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
-    if (file == NULL) {
-        return FILE_NOT_FOUND_ERROR;
-    }
-
-    // Check if the file pointer is already past the end of the file
-    if (file->offset >= file->file_size) {
-        return END_OF_FILE_ERROR;
-    }
-
-    // Seek to the current file pointer location
-    off_t file_offset = ROOT_DIRECTORY_LOC + (file->inode_index * BLOCKSIZE) + file->offset;
-    if (lseek(disk, file_offset, SEEK_SET) == -1) {
-        fprintf(stderr, "Error: Unable to seek to file pointer location.\n");
-        return SEEK_ERROR;
-    }
-
-    // Read one byte from the file and copy it to the buffer
-    if (read(disk, buffer, 1) != 1) {
-        fprintf(stderr, "Error: Unable to read byte from file.\n");
-        return READ_ERROR;
-    }
-
-    // Increment the file pointer location
-    file->offset++;
-
-    return 1; // Success
 
 }
 
@@ -500,7 +476,6 @@ int tfs_seek(fileDescriptor FD, int offset)
     }
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     file->offset = offset;
-    return 1;
 }
 
 int main()
