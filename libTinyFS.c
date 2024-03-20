@@ -323,10 +323,10 @@ fileDescriptor tfs_openFile(char *name)
     // we will write to inode mappings (inode offset) to bytes after 4th byte(index 4 onward)
     uint16_t value;
     unsigned char buffer[sizeof(uint16_t)];
-    disk = openDisk(currMountedFS, 0);
     for (int i = 0; i < 250; i += 2)
     {
         int datasize = read(disk, buffer, sizeof(buffer));
+        printf("datasize is %d\n", datasize);
         if (datasize != sizeof(buffer))
         {
             fprintf(stderr, "buffer data is %s and size is %d and other size is %d\n", buffer, sizeof(value), datasize);
