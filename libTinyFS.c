@@ -317,9 +317,10 @@ fileDescriptor tfs_openFile(char *name)
     unsigned char buffer[sizeof(uint16_t)];
     for (int i = 0; i < 250; i += 2)
     {
-        uint16_t value;
-        if (read(disk, &value, sizeof(value)) != sizeof(value))
+        int datasize = read(disk, buffer, sizeof(buffer));
+        if (datasize != sizeof(buffer))
         {
+            fprintf(stderr, "buffer data is %s and size is %d and other size is %d\n", buffer, sizeof(value), datasize);
             fprintf(stderr, "Error: Unable to read physical data.\n");
             return DISK_READ_ERROR;
         }
