@@ -122,6 +122,7 @@ int tfs_mkfs(char *filename, int nBytes)
         memset(&blockdata[1], 0x44, 1);
         for (int i = 0; i < num_blocks; i++)
         {
+            printf("WRITING A FILE BLOCK");
             if (writeBlock(disk, i, blockdata) == -1)
             {
                 fprintf(stderr, "Error: Unable to write block to disk.\n");

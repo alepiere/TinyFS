@@ -2,12 +2,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include "libDisk.h"
 
 #define BLOCKSIZE 256
 
+diskNode *head;
+int num_disks = 0;
+FILE *file_pointer = NULL;
+
 int openDisk(char *filename, int nBytes)
 {
-    int fd;
+    char *perms = "r+";
+    int disk;
+    FILE *file_pointer;
+    diskInfo diskInfo;
+
     if (nBytes < BLOCKSIZE && nBytes != 0)
     {
         fprintf(stderr, "Error: Disk size must be at least BLOCKSIZE bytes.\n");
@@ -24,6 +33,7 @@ int openDisk(char *filename, int nBytes)
     if (nBytes == 0)
     {
         // Open existing file without truncating
+        perms = 
         fd = open(filename, O_RDWR);
     }
     else
@@ -46,8 +56,23 @@ int openDisk(char *filename, int nBytes)
         close(fd);
         return -1;
     }
-
+    file_pointer = fdopen(fd, "r+");
+    if (file_pointer == NULL)
+    {
+        perror("Error opening file pointer");
+        close(fd);
+        return -1;
+    }
+    printf("File pointer is %p\n", file_pointer);
     return fd;
+}
+
+void insertDisk(diskInfo *diskinfo){
+    diskNode *newNode = (diskNode *)malloc(sizeof(diskNode));
+    newNode->diskinfo = diskinfo;
+    newNode->next = head;
+    head = newNode;
+    num_disks++;
 }
 
 int closeDisk(int disk)
@@ -56,27 +81,33 @@ int closeDisk(int disk)
     {
         close(disk);
     }
+    file_pointer = NULL;
     return 0;
 }
 
 int readBlock(int disk, int bNum, void *block)
 {
+    printf("File pointer is %p\n", file_pointer);
     char* blockdata = block;
-    for (int i = 0; i < BLOCKSIZE; i++)
-    {
-        printf("%02X ", blockdata[i]);
-    }
+    // for (int i = 0; i < BLOCKSIZE; i++)
+    // {
+    //     printf("%02X ", blockdata[i]);
+    // }
     int flags = fcntl(disk, F_GETFL);
     if (flags == -1)
     {
         return -1;
     }
     int offset = bNum * BLOCKSIZE;
-    if (lseek(disk, offset, SEEK_SET) == -1)
+    if (fseek(file_pointer, offset, SEEK_SET) == -1)
     {
         return -1;
     }
-    int bytesRead = read(disk, block, BLOCKSIZE);
+    // if (lseek(disk, offset, SEEK_SET) == -1)
+    // {
+    //     return -1;
+    // }
+    size_t bytesRead = fread(block, 1, BLOCKSIZE, file_pointer);;
     if (bytesRead == -1)
     {
         return -1;
@@ -91,22 +122,23 @@ int readBlock(int disk, int bNum, void *block)
 
 int writeBlock(int disk, int bNum, void *block)
 {   
+    printf("File pointer is %p\n", file_pointer);
     char* blockdata = block;
-    for (int i = 0; i < BLOCKSIZE; i++)
-    {
-        printf("%02X ", blockdata[i]);
-    }
+    // for (int i = 0; i < BLOCKSIZE; i++)
+    // {
+    //     printf("%02X ", blockdata[i]);
+    // }
     int flags = fcntl(disk, F_GETFL);
     if (flags == -1)
     {
         return -1;
     }
     int offset = bNum * BLOCKSIZE;
-    if (lseek(disk, offset, SEEK_SET) == -1)
+    if (fseek(file_pointer, offset, SEEK_SET) == -1)
     {
         return -1;
     }
-    int bytesWritten = write(disk, block, BLOCKSIZE);
+    int bytesWritten = fwrite(block, 1, BLOCKSIZE, file_pointer);
     printf("bytesWritten: %d\n", bytesWritten);
     if (bytesWritten == -1)
     {
