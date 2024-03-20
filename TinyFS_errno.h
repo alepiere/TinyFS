@@ -11,5 +11,8 @@
 #define BITMAP_SIZE_ERROR -8
 #define SEEK_FAIL -9
 #define FREE_BLOCK_ERROR -10
+#define FILE_NOT_FOUND_ERROR -11
+#define END_OF_FILE_ERROR -12
+#define READ_ERROR -13
 
 #endif 

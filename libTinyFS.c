@@ -160,7 +160,7 @@ int tfs_mkfs(char *filename, int nBytes)
             closeDisk(disk);
             return SEEK_ERROR;
         }
-        unsigned char data = 0x02; // 2 for inode block
+        data = 0x02; // 2 for inode block
         if (write(disk, &data, sizeof(data)) != sizeof(data))
         {
             fprintf(stderr, "Error: Unable to write physical data.\n");
@@ -359,6 +359,16 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     Bitmap *bitmap = readBitmap(disk);
     int num_blocks = (size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
+    //check if there is data already written to the file and if so deallocate it
+    if (file->file_size > 0)
+    {
+        int prev_num_blocks = (file->file_size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
+        //deallocate previous blocks allocated to a file
+        free_num_blocks(bitmap, file->inode_index, prev_num_blocks); 
+        //update file size to be 0 now temporarily until we write new data
+        file->file_size = 0;
+    }
+    // find free blocks for new data for file
     int free_block = find_free_blocks_of_size(bitmap, num_blocks);
     if (free_block == -2)
     {
@@ -404,8 +414,12 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
                 return SEEK_ERROR;
             }
             // write block index divided by 256 so it takes less bits to store
-            uint16_t next_block = (uint16_t)(write_offset / 256);
-            if (write(disk, ))
+            uint16_t next_block = (uint16_t)(write_offset / 256 + 1);
+            if (write(disk, &next_block, sizeof(next_block)) != sizeof(next_block))
+            {
+                fprintf(stderr, "Error: Unable to write next block index data.\n");
+                return WRITE_ERROR;
+            }
         }
         write_offset += BLOCKSIZE;
     }
@@ -433,11 +447,38 @@ current file pointer location and incrementing it by one upon success.
 If the file pointer is already past the end of the file then
 tfs_readByte() should return an error and not increment the file pointer.
 */
-    if (!mounted)
-    {
+    if (!mounted) {
         return MOUNTED_ERROR;
     }
+
+    // Find the file entry in the open file table
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
+    if (file == NULL) {
+        return FILE_NOT_FOUND_ERROR;
+    }
+
+    // Check if the file pointer is already past the end of the file
+    if (file->offset >= file->file_size) {
+        return END_OF_FILE_ERROR;
+    }
+
+    // Seek to the current file pointer location
+    off_t file_offset = ROOT_DIRECTORY_LOC + (file->inode_index * BLOCKSIZE) + file->offset;
+    if (lseek(disk, file_offset, SEEK_SET) == -1) {
+        fprintf(stderr, "Error: Unable to seek to file pointer location.\n");
+        return SEEK_ERROR;
+    }
+
+    // Read one byte from the file and copy it to the buffer
+    if (read(disk, buffer, 1) != 1) {
+        fprintf(stderr, "Error: Unable to read byte from file.\n");
+        return READ_ERROR;
+    }
+
+    // Increment the file pointer location
+    file->offset++;
+
+    return 1; // Success
 
 }
 
@@ -451,6 +492,7 @@ int tfs_seek(fileDescriptor FD, int offset)
     }
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     file->offset = offset;
+    return 1;
 }
 
 int main()
@@ -469,4 +511,5 @@ int main()
     tfs_mount("tinyfs_disk");
     tfs_openFile("testfile");
     printf("TinyFS file system created successfully.\n");
+    return 1;
 }
