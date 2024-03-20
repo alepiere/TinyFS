@@ -329,6 +329,7 @@ done. Returns success/error codes. */
     Bitmap *bitmap = readBitmap(disk);
     int num_blocks = (size + BLOCKSIZE - 1) / BLOCKSIZE;
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
+    int free_block = find_free_blocks_of_size(bitmap, num_blocks);
     return 1;
 }
 
