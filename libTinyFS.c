@@ -315,15 +315,27 @@ fileDescriptor tfs_openFile(char *name)
     // we will write to inode mappings (inode offset) to bytes after 4th byte(index 4 onward)
     uint16_t value;
     unsigned char buffer[sizeof(uint16_t)];
+    disk = openDisk(currMountedFS, 0);
     for (int i = 0; i < 250; i += 2)
     {
-        int datasize = read(disk, buffer, sizeof(buffer));
+        int datasize;
+        printf("buffer is %d eee\n", sizeof(datasize));
+        datasize = read(disk, buffer, sizeof(buffer));
         if (datasize != sizeof(buffer))
         {
-            fprintf(stderr, "buffer data is %s and size is %d and other size is %d\n", buffer, sizeof(value), datasize);
+            fprintf(stderr, "buffer data is %s and size is %lu and other size is %d\n", buffer, sizeof(value), datasize);
             fprintf(stderr, "Error: Unable to read physical data.\n");
             return DISK_READ_ERROR;
         }
+        printf("buffer is %s eee\n", buffer);
+        datasize = read(disk, buffer, sizeof(buffer));
+        if (datasize != sizeof(buffer))
+        {
+            fprintf(stderr, "buffer data is %s and size is %lu and other size is %d\n", buffer, sizeof(value), datasize);
+            fprintf(stderr, "Error: Unable to read physical data.\n");
+            return DISK_READ_ERROR;
+        }
+        printf("buffer is %d eee\n", sizeof(datasize));
         if (value == 0x0000)
         {
             // The next two bits are not 0x00
