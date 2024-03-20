@@ -141,6 +141,7 @@ int tfs_mkfs(char *filename, int nBytes)
                 fprintf(stderr, "Error: Unable to write physical data.\n");
                 return WRITE_ERROR;
             }
+            printf("%d bytes of '0x00' written\n", i);
         }
 
         // Start the bitmap
