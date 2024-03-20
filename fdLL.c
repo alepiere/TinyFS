@@ -90,3 +90,14 @@ void freeTable(FileEntry *head) {
     }
 }
 
+FileEntry* findFileEntryByFD(FileEntry *head, fileDescriptor fileDescriptor) {
+    FileEntry *current = head;
+    while (current != NULL) {
+        if (current->fileDescriptor == fileDescriptor) {
+            return current; // Return the FileEntry if found
+        }
+        current = current->next;
+    }
+    return NULL; // Return NULL if the FileEntry is not found
+}
+
