@@ -348,12 +348,19 @@ int tfs_deleteFile(fileDescriptor FD){
 }
 
 
-int tfs_readByte(fileDescriptor FD, char *buffer);
+int tfs_readByte(fileDescriptor FD, char *buffer){
 /* reads one byte from the file and copies it to buffer, using the
 current file pointer location and incrementing it by one upon success.
 If the file pointer is already past the end of the file then
 tfs_readByte() should return an error and not increment the file pointer.
 */
+    if (!mounted)
+    {
+        return MOUNTED_ERROR;
+    }
+    FileEntry *file = findFileEntryByFD(openFileTable, FD);
+
+}
 
 int tfs_seek(fileDescriptor FD, int offset)
 {
@@ -363,24 +370,8 @@ int tfs_seek(fileDescriptor FD, int offset)
     {
         return MOUNTED_ERROR;
     }
-
-    FileEntry *current = openFileTable;
-    fileDescriptor fd = openDisk(currMountedFS, 0);
-
-    while (current != NULL)
-    {
-        if (current->fileDescriptor == FD)
-        {
-            if (lseek(current->fileDescriptor, offset, SEEK_SET) == -1)
-            {
-                return SEEK_ERROR;
-            }
-            closeDisk(FD);
-            return 1;
-        }
-        current = current->next;
-    }
-    return SEEK_FAIL;
+    FileEntry *file = findFileEntryByFD(openFileTable, FD);
+    file->offset = offset;
 }
 
 int main()
