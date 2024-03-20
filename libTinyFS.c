@@ -13,6 +13,7 @@ int mounted = 0;     // 1 if file system is mounted, 0 if not
 char *currMountedFS; // Name of the currently mounted file system
 int fds = 1;         // File descriptor counter
 int disk = -1;       // File descriptor for disk
+Bitmap *bitmap = NULL;
 FileEntry *openFileTable = NULL;
 
 Bitmap *readBitmap(int disk)
@@ -24,7 +25,7 @@ Bitmap *readBitmap(int disk)
         closeDisk(disk);
         return NULL;
     }
-
+    
     // Read the bitmap structure from disk
     Bitmap *bitmap = (Bitmap *)malloc(sizeof(Bitmap));
     if (read(disk, bitmap, sizeof(Bitmap)) != sizeof(Bitmap))
@@ -297,7 +298,8 @@ fileDescriptor tfs_openFile(char *name)
     int fd = fds++;
 
     Bitmap *bitmap = readBitmap(disk);
-    int free_block = find_free_blocks_of_size(bitmap, 1);
+    int free_block = find_free_blocks_of_size(bitmap, 1) + 2;
+    printf("free block is %d\n", free_block);
     if (free_block == -2)
     {
         fprintf(stderr, "Error: No free blocks available.\n");
