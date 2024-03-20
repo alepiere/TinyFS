@@ -8,6 +8,8 @@ possible values */
 #define DEFAULT_DISK_NAME “tinyFSDisk”
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;
+/* magic number */
+#define MAGIC_NUMBER 0x44
 
 //block types
 #define EMPTY 0

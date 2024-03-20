@@ -172,6 +172,34 @@ int tfs_mkfs(char *filename, int nBytes)
             fprintf(stderr, "Error: Unable to write physical data.\n");
             return WRITE_ERROR;
         }
+
+        off_t block_offset = 512;
+        for (int i = 0; block_offset + (256 * i) < nBytes; i ++) 
+        {
+            if (lseek(disk, block_offset + (256 * i), SEEK_SET) == -1)
+            {
+                fprintf(stderr, "Error: Unable to seek to free block.\n");
+                closeDisk(disk);
+                return SEEK_ERROR;
+            }
+            // write block type (4 = free block)
+            data = 0x04;
+            if (write(disk, &data, sizeof(data)) != sizeof(data))
+            {
+                fprintf(stderr, "Error: Unable to write block type to free block.\n");
+                closeDisk(disk);
+                return WRITE_ERROR;
+            }
+            // write magic number (0x44)
+            data = 0x44;
+            if (write(disk, &data, sizeof(data)) != sizeof(data))
+            {
+                fprintf(stderr, "Error: Unable to write magic number to free block.\n");
+                closeDisk(disk);
+                return WRITE_ERROR;
+            }
+        }
+
         // make success code for mkfs
     }
     return 1; // make meaningfull succss error code
