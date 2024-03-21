@@ -467,6 +467,7 @@ fileDescriptor tfs_openFile(char *name)
     for (int i = 4; i < 12; i++)
     {
         inode[i] = name[i-4];
+        printf("Writing %c to inode\n", name[i-4]);
     }
     printf("inode contents: ");
     for (int i = 0; i < BLOCKSIZE; i++)
@@ -476,6 +477,12 @@ fileDescriptor tfs_openFile(char *name)
     printf("\n");
     //inode[12] will be null character which blocks are set to by default
     //inode[13] and [inode 14] will be file size which are set to 0/null again by default
+    if (writeBlock(disk, inode_index, inode) == -1)
+    {
+        fprintf(stderr, "Error: Unable to write inode to disk.\n");
+        closeDisk(disk);
+        return WRITE_ERROR;
+    }
 
     //inode[15] will be creation timestamp (8 bytes)
     time(&t);
@@ -832,11 +839,41 @@ int tfs_readdir() {
 /* lists all the files and directories on the disk, print the
 list to stdout -- Note: if you don’t have hierarchical directories, this just reads
 the root directory aka “all files” */
+    int j;
     if (!mounted)
     {
         fprintf(stderr, "Error: No file system mounted.\n");
         return MOUNTED_ERROR;
     }
+    unsigned char rootDirectory[BLOCKSIZE];
+    readBlock(disk, 1, rootDirectory);
+    for (int i = 4; i < 251; i += 2)
+    {
+        // need two bytes to write up to block 65535 for inodes
+        int value = (rootDirectory[i] << 8) | rootDirectory[i + 1];
+        // if value is 0 (unallocated) then thats where next inode mapping will be
+        if (value == 0)
+        {
+            break;
+        }
+        printf("value is %d\n", value);
+        unsigned char inodeBlock[BLOCKSIZE];
+        readBlock(disk, value, inodeBlock);
+        char filename[9];
+        printf("Inode contents: ");
+        for (int i = 0; i < BLOCKSIZE; i++)
+        {
+            printf("%02x ", inodeBlock[i]);
+        }
+        printf("\n");
+        for (j = 0; j < 8 && inodeBlock[j+4] != 0x00; j++) {
+            filename[j] = inodeBlock[j+4];
+        }
+        filename[j] = '\0'; // Null-terminate the string
+        printf("File name: %s\n", filename);
+
+    }
+
     return 1;
 }
 
@@ -856,6 +893,8 @@ int main()
     tfs_mount("tinyfs_disk");
     tfs_openFile("testfile");
     tfs_openFile("testfil3");
+    tfs_openFile("e");
     printf("TinyFS file system created successfully.\n");
+    tfs_readdir();
     return 1;
 }
