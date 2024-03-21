@@ -20,6 +20,7 @@ int main(void) {
     tfs_writeFile(fd, newptr, 11);
 
     tfs_deleteFile(fd);
+    printf("Deleted testfile and then running readdir\n");
     tfs_readdir();
     return 1;
 }

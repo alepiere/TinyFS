@@ -21,6 +21,7 @@ int tfs_readdir();
 int tfs_readByte(fileDescriptor FD, char *buffer);
 int tfs_seek(fileDescriptor FD, int offset);
 int tfs_readFileInfo(fileDescriptor FD);
+int tfs_rename(fileDescriptor FD, char *newName);
 
 //block types
 #define EMPTY 0

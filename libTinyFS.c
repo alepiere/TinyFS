@@ -508,7 +508,6 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     // check if there is data already written to the file and if so deallocate it
     if (file->file_size > 0)
     {
-        printf("deleting old data RN\n");
         int file_index = file->file_index;
         int prev_num_blocks = (file->file_size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
 
@@ -660,11 +659,10 @@ int tfs_deleteFile(fileDescriptor FD)
     {
         return MOUNTED_ERROR;
     }
-    printf("deleting old data RN\n");
     FileEntry *deleteMe = findFileEntryByFD(openFileTable, FD);
     int file_index = deleteMe->file_index;
     int prev_num_blocks = (deleteMe->file_size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
-    printf("prev num blocks is %d and file_index is %d for fd %d\n", prev_num_blocks, file_index, deleteMe->fileDescriptor);
+    // printf("prev num blocks is %d and file_index is %d for fd %d\n", prev_num_blocks, file_index, deleteMe->fileDescriptor);
     char freeBlock[BLOCKSIZE];
     freeBlock[0] = 0x04;
     freeBlock[1] = 0x44;
@@ -851,6 +849,13 @@ int tfs_rename(fileDescriptor FD, char *newName)
         return FILE_NOT_FOUND_ERROR;
     }
     strcpy(file->filename, newName);
+    unsigned char inodeBlock[BLOCKSIZE];
+    readBlock(disk, file->inode_index, inodeBlock);
+    for (int i = 4; i < 12; i++)
+    {
+        inodeBlock[i] = newName[i - 4];
+    }
+    writeBlock(disk, file->inode_index, inodeBlock);
     printf("File renamed successfully to %s.\n", newName);
     return RENAME_SUCCESS;
 }
