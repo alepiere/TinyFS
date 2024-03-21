@@ -10,8 +10,8 @@ Bitmap *create_bitmap(int bitmap_size, int num_blocks, unsigned char *free_block
         // can store 8 blocks in the 8 bits in one byte and
         bitmap->bitmap_size = bitmap_size;
         bitmap->num_blocks = num_blocks;
-        printf("bitmap size: %d\n", bitmap->bitmap_size);
-        printf("num_blocks: %d\n", bitmap->num_blocks);
+        // printf("bitmap size: %d\n", bitmap->bitmap_size);
+        // printf("num_blocks: %d\n", bitmap->num_blocks);
         // Allocate memory for free blocks by number of bytes
         //Basically have an optional parameter to pass in free blocks if there already is one and if not make one
         if (free_blocks == NULL){
