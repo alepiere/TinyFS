@@ -205,6 +205,12 @@ int tfs_mkfs(char *filename, int nBytes)
             closeDisk(disk);
             return WRITE_ERROR;
         }
+        if (writeBlock(disk, 1, rootDirectory) == -1)
+        {
+            fprintf(stderr, "Error: Unable to write root directory to disk.\n");
+            closeDisk(disk);
+            return WRITE_ERROR;
+        }
         printf("tfs create has all went through\n");
         // size_t data_size = sizeof(Bitmap) + bitmap->bitmap_size;
         // unsigned char data = 0x01; // Modify the data to be written
