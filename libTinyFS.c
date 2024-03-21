@@ -192,9 +192,9 @@ int tfs_mkfs(char *filename, int nBytes)
 
         for (int i = 0; i < bitmap_size; i++)
         {
-            //printf("writing bitmap data\n");
+            // printf("writing bitmap data\n");
             superblock[i + 7] = bitmap_data[i]; // Start writing from index 7 onwards
-            //printf("bitmap data is %d\n", bitmap_data[i]);
+            // printf("bitmap data is %d\n", bitmap_data[i]);
         }
         // Print contents of superblock in bytes
         // for (int i = 0; i < BLOCKSIZE; i++)
@@ -643,7 +643,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     // write updated inode back to disk
     // printf("writing inode back to disk\n");
     // printf("inode_index is %d\n", file->inode_index);
-    
+
     if (writeBlock(disk, file->inode_index, inode) == -1)
     {
         fprintf(stderr, "Error: Unable to write inode to disk.\n");
@@ -660,10 +660,55 @@ int tfs_deleteFile(fileDescriptor FD)
     {
         return MOUNTED_ERROR;
     }
-    Bitmap *bitmap = readBitmap(disk);
+    printf("deleting old data RN\n");
     FileEntry *deleteMe = findFileEntryByFD(openFileTable, FD);
-    free_num_blocks(bitmap, deleteMe->inode_index, deleteMe->file_size);
-    writeBitmap(disk, bitmap);
+    int file_index = deleteMe->file_index;
+    int prev_num_blocks = (deleteMe->file_size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
+    printf("prev num blocks is %d and file_index is %d for fd %d\n", prev_num_blocks, file_index, deleteMe->fileDescriptor);
+    char freeBlock[BLOCKSIZE];
+    freeBlock[0] = 0x04;
+    freeBlock[1] = 0x44;
+    for (int i = 2; i < BLOCKSIZE; i++)
+    {
+        freeBlock[i] = 0x00;
+    }
+    for (int i = 0; i < prev_num_blocks; i++)
+    {
+        if (writeBlock(disk, file_index + i, freeBlock) == -1)
+        {
+            fprintf(stderr, "Error: Unable to write free block to disk.\n");
+            closeDisk(disk);
+            return WRITE_ERROR;
+        }
+        free_block(mountedBitmap, deleteMe->file_index + i);
+    }
+    // delete inodex by replacing it as a free block
+    if (writeBlock(disk, deleteMe->inode_index, freeBlock) == -1)
+    {
+        fprintf(stderr, "Error: Unable to write free block to disk.\n");
+        closeDisk(disk);
+        return WRITE_ERROR;
+    }
+    char rootDirectory[BLOCKSIZE];
+    readBlock(disk, 1, rootDirectory);
+    //update root directory by deleting that inode
+    for (int i = 4; i < 251; i += 2)
+    {
+        // need two bytes to write up to block 65535 for inodes
+        int value = (rootDirectory[i] << 8) | rootDirectory[i + 1];
+        // if value is 0 (unallocated) then thats where next inode mapping will be
+        if (value == deleteMe->inode_index)
+        {
+            rootDirectory[i] = 0x00;
+            rootDirectory[i + 1] = 0x00;
+            break;
+        }
+    }
+    // deallocate previous blocks allocated to a file
+    free_num_blocks(mountedBitmap, deleteMe->inode_index, prev_num_blocks);
+    // update file size to be 0 now temporarily until we write new data
+    deleteMe->file_size = 0;
+    free_num_blocks(mountedBitmap, deleteMe->inode_index, deleteMe->file_size);
     tfs_closeFile(FD); // remove from open file table and free memory
     return DELETE_SUCCESS;
 }
@@ -697,7 +742,8 @@ int tfs_readByte(fileDescriptor FD, char *buffer)
     // Figure out what block the file pointer is in (file pointer = fileindex + offset)
     int start_pointer = file->file_index;
     int block_to_read = start_pointer + (file->offset / 252);
-    int file_pointer = start_pointer*256 + ((file->offset / 252) * 256) + file->offset % 252 + 4;
+    int file_pointer = start_pointer * 256 + ((file->offset / 252) * 256) + file->offset % 252 + 4;
+    printf("file pointer is %d\n", file_pointer);
     unsigned char fileContent[BLOCKSIZE];
     if (readBlock(disk, block_to_read, fileContent) == -1)
     {
@@ -705,10 +751,10 @@ int tfs_readByte(fileDescriptor FD, char *buffer)
         closeDisk(disk);
         return DISK_READ_ERROR;
     }
-    // Read one byte from the file and copy it to the buffer
-    memcpy(buffer, &fileContent[file_pointer], 1);
-    // Increment the file pointer location
-    file->offset= file->offset + 1;
+    char byteData = (char)fileContent[file_pointer];
+    // Read one byte from the file and copy it to the buffer as a char
+    *buffer = byteData;
+    file->offset = file->offset + 1;
     return 1; // Success
 }
 
@@ -721,7 +767,7 @@ int tfs_seek(fileDescriptor FD, int offset)
         return MOUNTED_ERROR;
     }
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
-    //offset will be used to calculate file pointer for readByte
+    // offset will be used to calculate file pointer for readByte
     file->offset = offset;
     return SEEK_SUCCESS;
 }
@@ -846,7 +892,10 @@ int tfs_readdir()
             filename[j] = inodeBlock[j + 4];
         }
         filename[j] = '\0'; // Null-terminate the string
-        printf("File name: %s\n", filename);
+        if (strlen(filename) > 0)
+        {
+            printf("File name: %s\n", filename);
+        }
     }
     return READDIR_SUCCESS;
 }

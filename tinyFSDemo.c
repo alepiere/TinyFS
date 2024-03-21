@@ -18,5 +18,8 @@ int main(void) {
     char testData[] = "Test file d";
     char *newptr = testData;
     tfs_writeFile(fd, newptr, 11);
+
+    tfs_deleteFile(fd);
+    tfs_readdir();
     return 1;
 }
