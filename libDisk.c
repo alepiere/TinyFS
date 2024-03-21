@@ -62,13 +62,25 @@ int readBlock(int disk, int bNum, void *block){
     if (bytesRead == -1) {
         return -1;
     } else if (bytesRead < BLOCKSIZE) {
-        fprintf(stderr, "Error: bytes read less than blocksize.\n");
+        fprintf(stderr, "Error: bytes read less than blocksize. and bytes read is %d\n", bytesRead);
         return -1;
     }
+    // printf("Bytes read from block %d:\n", bNum);
+    // for (int i = 0; i < BLOCKSIZE; i++) {
+    //     printf("%02X ", *((unsigned char*)block + i));
+    // }
+    // printf("\n");
+    
     return 0;
 }
     
 int writeBlock(int disk, int bNum, void *block){
+    // printf("Block being written in bytes: to offset %d\n", bNum);
+    // for (int i = 0; i < BLOCKSIZE; i++) {
+    //     printf("%02X ", *((unsigned char*)block + i));
+    // }
+    // printf("\n");
+    
     int flags = fcntl(disk, F_GETFL);
     if (flags == -1) {
         return -1;
@@ -84,5 +96,6 @@ int writeBlock(int disk, int bNum, void *block){
         fprintf(stderr, "Error: bytes written less than blocksize.\n");
         return -1;
     }
+    // printf("bytes written is %d\n", bytesWritten);
     return 0;
 }
