@@ -430,6 +430,13 @@ fileDescriptor tfs_openFile(char *name)
     {
         inode[i + 23] = sec_bytes[i];
     }
+    printf("inode contents with CREATION TIME before write %d\n", inode_index);
+    for (int i = 0; i < BLOCKSIZE; i++)
+    {
+        printf("%02x ", inode[i]);
+    }
+    printf("\n");
+
     if (writeBlock(disk, inode_index, inode) == -1)
     {
         fprintf(stderr, "Error: Unable to write inode to disk.\n");
@@ -524,7 +531,11 @@ fileDescriptor tfs_openFile(char *name)
     // LOOOOOOOOOOK implement logic if we run out of space for inodes by allocating a new block for more inode space
 
     insertFileEntry(&openFileTable, newFileEntry);
-
+    printf("Contents of newFileEntry:\n");
+    printf("Filename: %s\n", newFileEntry->filename);
+    printf("Inode Index: %d\n", newFileEntry->inode_index);
+    printf("File Size: %d\n", newFileEntry->file_size);
+    printf("File Descriptor: %d\n", newFileEntry->fileDescriptor);
     /* find first free location to place an inode block */
     /* add a new entry in drt that refers to this filename
      *     returns a fileDescriptor (temp->id) */
@@ -699,6 +710,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     // write updated inode back to disk
     printf("writing inode back to disk\n");
     printf("inode_index is %d\n", file->inode_index);
+    
     if (writeBlock(disk, file->inode_index, inode) == -1)
     {
         fprintf(stderr, "Error: Unable to write inode to disk.\n");
@@ -957,41 +969,42 @@ int tfs_readdir()
     return 1;
 }
 
-int main()
-{
-    // Create a TinyFS file system with a specified size
-    char filename[] = "tinyfs_disk";
-    int disk_size = 4096; // 2 KB disk size
-    int result = tfs_mkfs(filename, disk_size);
+// int main()
+// {
+//     // Create a TinyFS file system with a specified size
+//     char filename[] = "tinyfs_disk";
+//     int disk_size = 4096; // 2 KB disk size
+//     int result = tfs_mkfs(filename, disk_size);
 
-    // Check if tfs_mkfs succeeded
-    if (result != 1)
-    {
-        fprintf(stderr, "Error: Failed to create TinyFS file system.\n");
-        return 1;
-    }
-    tfs_mount("tinyfs_disk");
-    char fileContent[] = "Test file dataelllu333333333312345678765456787656787656787656787656787656781234567890123456789123456789123456789012345678912345678923456789012345678912345678902345678902345678912345678902345678923456789345654676567j98938242331513513531534531513534534567867876789878978787678767876567867865676567876";
-    printf("Length of fileContent: %zu\n", strlen(fileContent));
-    char *ptr = fileContent;
-    int fd = tfs_openFile("testfile");
-    tfs_readFileInfo(fd);
-    // printf("fd is %d for testfile\n", fd);
-    // int len = strlen(fileContent);
-    // tfs_writeFile(fd, ptr, len);
-    // printf("file written correctly\n");
-    // int fd2 = tfs_openFile("testfil3");
-    // char testData[] = "Test file d";
-    // char *newptr = testData;
-    // tfs_writeFile(fd, newptr, 12);
-    // tfs_writeFile(fd2, newptr, 12);
-    // tfs_writeFile(fd2, ptr, len);
-    // tfs_writeFile(fd, ptr, len);
-    // tfs_openFile("testfile");
-    // tfs_openFile("testfil3");
-    // tfs_openFile("e");
-    // tfs_readFileInfo(fd);
-    // printf("TinyFS file system created successfully.\n");
-    // tfs_readdir();
-    return 1;
-}
+//     // Check if tfs_mkfs succeeded
+//     if (result != 1)
+//     {
+//         fprintf(stderr, "Error: Failed to create TinyFS file system.\n");
+//         return 1;
+//     }
+//     tfs_mount("tinyfs_disk");
+//     char fileContent[] = "Test file dataelllu333333333312345678765456787656787656787656787656787656781234567890123456789123456789123456789012345678912345678923456789012345678912345678902345678902345678912345678902345678923456789345654676567j98938242331513513531534531513534534567867876789878978787678767876567867865676567876";
+//     printf("Length of fileContent: %zu\n", strlen(fileContent));
+//     char *ptr = fileContent;
+//     int fd = tfs_openFile("testfile");
+//     tfs_writeFile(fd, ptr, strlen(fileContent));
+//     tfs_readFileInfo(fd);
+//     // printf("fd is %d for testfile\n", fd);
+//     // int len = strlen(fileContent);
+//     // tfs_writeFile(fd, ptr, len);
+//     // printf("file written correctly\n");
+//     // int fd2 = tfs_openFile("testfil3");
+//     // char testData[] = "Test file d";
+//     // char *newptr = testData;
+//     // tfs_writeFile(fd, newptr, 12);
+//     // tfs_writeFile(fd2, newptr, 12);
+//     // tfs_writeFile(fd2, ptr, len);
+//     // tfs_writeFile(fd, ptr, len);
+//     // tfs_openFile("testfile");
+//     // tfs_openFile("testfil3");
+//     // tfs_openFile("e");
+//     // tfs_readFileInfo(fd);
+//     // printf("TinyFS file system created successfully.\n");
+//     // tfs_readdir();
+//     return 1;
+// }
