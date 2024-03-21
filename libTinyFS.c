@@ -521,9 +521,11 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     }
     // check if there is data already written to the file and if so deallocate it
     if (file->file_size > 0)
-    {
+    {   
+        printf("deleting old data RN\n");
         int file_index = file->file_index;
         int prev_num_blocks = (file->file_size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
+        printf("prev num blocks is %d and file_index is %d for fd %d\n", prev_num_blocks, file_index, file->fileDescriptor);
         char freeBlock[BLOCKSIZE];
         freeBlock[0] = 0x04;
         freeBlock[1] = 0x44;
@@ -548,6 +550,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     }
     // find free blocks for new data for file
     int free_block = find_free_blocks_of_size(mountedBitmap, num_blocks);
+    file->file_index = free_block;
     if (free_block == -2)
     {
         fprintf(stderr, "Error: No free blocks available.\n");
@@ -586,7 +589,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
             for (i = current_chunk_size; i < chunk_size; i++)
             {
                 fileContent[offset + i] = 0x00;
-                printf("i is %d\n", i+offset);
+                //printf("i is %d\n", i+offset);
             }
         }
         if (remaining_size != 0)
@@ -609,14 +612,14 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
             return WRITE_ERROR;
         }
         // Print the block data written in bytes
-        printf("Block %d data written: ", blocks_written);
+        printf("Block %d data written: ", blocks_written++);
         for (i = 0; i < BLOCKSIZE; i++)
         {
             printf("%02x ", fileContent[i]);
         }
         printf("\n");
     }
-    //file->file_size = size;
+    file->file_size = size;
     printf("after editing file size\n");
     unsigned char inode[BLOCKSIZE];
     if (readBlock(disk, file->inode_index, inode) == -1)
@@ -751,6 +754,8 @@ int tfs_readByte(fileDescriptor FD, char *buffer)
     }
 
     // Seek to the current file pointer location
+    // Figure out what block the file pointer is in (file pointer = fileindex + offset)
+    
     off_t file_offset = ROOT_DIRECTORY_LOC + (file->inode_index * BLOCKSIZE) + file->offset;
     if (lseek(disk, file_offset, SEEK_SET) == -1)
     {
@@ -862,7 +867,13 @@ int main()
     int len = strlen(fileContent);
     tfs_writeFile(fd, ptr, len);
     printf("file written correctly\n");
-    tfs_openFile("testfil3");
+    int fd2 = tfs_openFile("testfil3");
+    char testData[] = "Test file d";
+    char* newptr = testData;
+    tfs_writeFile(fd, newptr, 12);
+    tfs_writeFile(fd2, newptr, 12);
+    tfs_writeFile(fd2, ptr, len);
+    tfs_writeFile(fd, ptr, len);
     printf("TinyFS file system created successfully.\n");
     return 1;
 }
