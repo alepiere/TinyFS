@@ -15,7 +15,7 @@ int openDisk(char *filename, int nBytes)
     }
 
     off_t diskSize = nBytes - (nBytes % BLOCKSIZE);
-    printf("disksize is %d\n", diskSize);
+    // printf("disksize is %d\n", diskSize);
     if (diskSize == 0)
     {
         diskSize = BLOCKSIZE; // Ensure disk size is at least BLOCKSIZE bytes
@@ -92,12 +92,12 @@ int readBlock(int disk, int bNum, void *block)
 
 int writeBlock(int disk, int bNum, void *block)
 {
-    printf("Block being written in bytes: to offset %d\n", bNum);
-    for (int i = 0; i < BLOCKSIZE; i++)
-    {
-        printf("%02X ", *((unsigned char *)block + i));
-    }
-    printf("\n");
+    // printf("Block being written in bytes: to offset %d\n", bNum);
+    // for (int i = 0; i < BLOCKSIZE; i++)
+    // {
+    //     printf("%02X ", *((unsigned char *)block + i));
+    // }
+    // printf("\n");
     
     int flags = fcntl(disk, F_GETFL);
     if (flags == -1)
@@ -109,7 +109,6 @@ int writeBlock(int disk, int bNum, void *block)
     {
         return -1;
     }
-    printf("offset is %d\n", offset);
     int bytesWritten = write(disk, block, BLOCKSIZE);
     if (bytesWritten == -1)
     {
@@ -120,7 +119,5 @@ int writeBlock(int disk, int bNum, void *block)
         fprintf(stderr, "Error: bytes written less than blocksize.\n");
         return -1;
     }
-    printf("bytes written is %d\n", bytesWritten);
-    printf("returning\n");
     return 0;
 }

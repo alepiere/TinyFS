@@ -20,6 +20,7 @@ int tfs_closeFile(fileDescriptor FD);
 int tfs_readdir();
 int tfs_readByte(fileDescriptor FD, char *buffer);
 int tfs_seek(fileDescriptor FD, int offset);
+int tfs_readFileInfo(fileDescriptor FD);
 
 //block types
 #define EMPTY 0
