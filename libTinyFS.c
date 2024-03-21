@@ -390,31 +390,71 @@ fileDescriptor tfs_openFile(char *name)
         return WRITE_ERROR;
     }
 
-    //inode[15] will be creation timestamp (8 bytes)
+    // inode[15] will be creation timestamp (8 bytes)
     time(&t);
     struct tm *local_time = localtime(&t);
 
     printf("AAA Current local time: %02d:%02d:%02d\n", local_time->tm_hour, local_time->tm_min, local_time->tm_sec);
     printf("Size of time_t: %zu bytes\n", sizeof(t));
-
-    // creation time 
-    for (int i = 15; i < 15 + sizeof(time_t); i++)
+    printf("size of tm_hour is %zu\n", sizeof(local_time->tm_hour));
+    printf("size of tm_min is %zu\n", sizeof(local_time->tm_min));
+    printf("size of tm_sec is %zu\n", sizeof(local_time->tm_sec));
+    // Convert tm_hour to bytes
+    unsigned char hour_bytes[sizeof(local_time->tm_hour)];
+    for (int i = 0; i < sizeof(local_time->tm_hour); i++)
     {
-        inode[i] = *((unsigned char*)&t + i); // Store each byte of time_t starting at byte 15
+        hour_bytes[i] = *((unsigned char *)&local_time->tm_hour + i);
     }
 
-    // modification time
-    for (int i = 24; i < 24 + sizeof(time_t); i++)
+    // Write hour_bytes to inode starting at i = 15
+    for (int i = 0; i < sizeof(local_time->tm_hour); i++)
     {
-        inode[i] = *((unsigned char*)&t + i); // Store each byte of time_t starting at byte 15
+        inode[i + 15] = hour_bytes[i];
+    }
+    // Convert tm_min to bytes
+    unsigned char min_bytes[sizeof(local_time->tm_min)];
+    for (int i = 0; i < sizeof(local_time->tm_min); i++)
+    {
+        min_bytes[i] = *((unsigned char *)&local_time->tm_min + i);
     }
 
-
-    // access time 
-    for (int i = 33; i < 33 + sizeof(time_t); i++)
+    // Write min_bytes to inode starting at i = 19
+    for (int i = 0; i < sizeof(local_time->tm_min); i++)
     {
-        inode[i] = *((unsigned char*)&t + i); // Store each byte of time_t starting at byte 15
+        inode[i + 19] = min_bytes[i];
     }
+
+    // Convert tm_sec to bytes
+    unsigned char sec_bytes[sizeof(local_time->tm_sec)];
+    for (int i = 0; i < sizeof(local_time->tm_sec); i++)
+    {
+        sec_bytes[i] = *((unsigned char *)&local_time->tm_sec + i);
+    }
+
+    // Write sec_bytes to inode starting at i = 23
+    for (int i = 0; i < sizeof(local_time->tm_sec); i++)
+    {
+        inode[i + 23] = sec_bytes[i];
+    }
+    
+
+    // // creation time
+    // for (int i = 15; i < 15 + sizeof(time_t); i++)
+    // {
+    //     inode[i] = *((unsigned char *)&t + i); // Store each byte of time_t starting at byte 15
+    // }
+
+    // // modification time
+    // for (int i = 24; i < 24 + sizeof(time_t); i++)
+    // {
+    //     inode[i] = *((unsigned char *)&t + i); // Store each byte of time_t starting at byte 15
+    // }
+
+    // // access time
+    // for (int i = 33; i < 33 + sizeof(time_t); i++)
+    // {
+    //     inode[i] = *((unsigned char *)&t + i); // Store each byte of time_t starting at byte 15
+    // }
 
     printf("inode CREATION time: ");
     for (int i = 0; i < BLOCKSIZE; i++)
@@ -512,7 +552,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
         allFileTable = allFileTable->next;
     }
     printf("\n");
-    
+
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     if (file == NULL)
     {
@@ -521,7 +561,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     }
     // check if there is data already written to the file and if so deallocate it
     if (file->file_size > 0)
-    {   
+    {
         printf("deleting old data RN\n");
         int file_index = file->file_index;
         int prev_num_blocks = (file->file_size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
@@ -579,7 +619,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
         {
             fileContent[offset + i] = buffer[i];
         }
-        //offset += current_chunk_size;
+        // offset += current_chunk_size;
         remaining_size -= current_chunk_size;
         printf("remaining size is %d\n", remaining_size);
 
@@ -589,7 +629,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
             for (i = current_chunk_size; i < chunk_size; i++)
             {
                 fileContent[offset + i] = 0x00;
-                //printf("i is %d\n", i+offset);
+                // printf("i is %d\n", i+offset);
             }
         }
         if (remaining_size != 0)
@@ -755,7 +795,8 @@ int tfs_readByte(fileDescriptor FD, char *buffer)
 
     // Seek to the current file pointer location
     // Figure out what block the file pointer is in (file pointer = fileindex + offset)
-    
+    int start_pointer = file->file_index;
+    int file_pointer = (file->offset / 252 * 256) + file->offset % 252;
     off_t file_offset = ROOT_DIRECTORY_LOC + (file->inode_index * BLOCKSIZE) + file->offset;
     if (lseek(disk, file_offset, SEEK_SET) == -1)
     {
@@ -792,9 +833,10 @@ int tfs_seek(fileDescriptor FD, int offset)
 // EXTRA CREDIT :,)
 
 // Timestamps (10%)
-time_t tfs_readFileInfo(fileDescriptor FD){
-/* returns the file’s creation time or all info  
-    should be stored on the INODE*/
+time_t tfs_readFileInfo(fileDescriptor FD)
+{
+    /* returns the file’s creation time or all info
+        should be stored on the INODE*/
 
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     if (file == NULL)
@@ -805,23 +847,23 @@ time_t tfs_readFileInfo(fileDescriptor FD){
     int inode_ind = file->inode_index;
     unsigned char inodeBlock[BLOCKSIZE];
     readBlock(disk, inode_ind, inodeBlock);
-    time_t creation_time = *((time_t*)(inodeBlock[15]));
+    time_t creation_time = *((time_t *)(inodeBlock[15]));
     printf("File creation time: %s\n", ctime(&creation_time));
 
-    time_t modification_time = *((time_t*)(inodeBlock[24]));
+    time_t modification_time = *((time_t *)(inodeBlock[24]));
     printf("File creation time: %s\n", ctime(&modification_time));
 
-    time_t access_time = *((time_t*)(inodeBlock[33]));
+    time_t access_time = *((time_t *)(inodeBlock[33]));
     printf("File creation time: %s\n", ctime(&access_time));
 
     // Return -1 if file not found
     return 0;
 }
 
-
-// Directory listing and file renaming (10%) 
-int tfs_rename(fileDescriptor FD, char* newName){
- /* renames a file. New name should be passed in. File has to be open. */
+// Directory listing and file renaming (10%)
+int tfs_rename(fileDescriptor FD, char *newName)
+{
+    /* renames a file. New name should be passed in. File has to be open. */
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     if (file == NULL)
     {
@@ -833,10 +875,11 @@ int tfs_rename(fileDescriptor FD, char* newName){
     return 1;
 }
 
-int tfs_readdir() {
-/* lists all the files and directories on the disk, print the
-list to stdout -- Note: if you don’t have hierarchical directories, this just reads
-the root directory aka “all files” */
+int tfs_readdir()
+{
+    /* lists all the files and directories on the disk, print the
+    list to stdout -- Note: if you don’t have hierarchical directories, this just reads
+    the root directory aka “all files” */
     int j;
     if (!mounted)
     {
@@ -864,12 +907,12 @@ the root directory aka “all files” */
             printf("%02x ", inodeBlock[i]);
         }
         printf("\n");
-        for (j = 0; j < 8 && inodeBlock[j+4] != 0x00; j++) {
-            filename[j] = inodeBlock[j+4];
+        for (j = 0; j < 8 && inodeBlock[j + 4] != 0x00; j++)
+        {
+            filename[j] = inodeBlock[j + 4];
         }
         filename[j] = '\0'; // Null-terminate the string
         printf("File name: %s\n", filename);
-
     }
 
     return 1;
@@ -899,7 +942,7 @@ int main()
     printf("file written correctly\n");
     int fd2 = tfs_openFile("testfil3");
     char testData[] = "Test file d";
-    char* newptr = testData;
+    char *newptr = testData;
     tfs_writeFile(fd, newptr, 12);
     tfs_writeFile(fd2, newptr, 12);
     tfs_writeFile(fd2, ptr, len);
@@ -907,6 +950,7 @@ int main()
     tfs_openFile("testfile");
     tfs_openFile("testfil3");
     tfs_openFile("e");
+    tfs_readFileInfo(fd);
     printf("TinyFS file system created successfully.\n");
     tfs_readdir();
     return 1;
