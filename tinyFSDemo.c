@@ -1,4 +1,5 @@
 #include "libTinyFS.h"
+#include <stdio.h>
 
 int main(void) {
     int disk = tfs_mkfs("tinyFSDisk", DEFAULT_DISK_SIZE);

@@ -11,6 +11,16 @@ typedef int fileDescriptor;
 /* magic number */
 #define MAGIC_NUMBER 0x44
 
+int tfs_mkfs(char *filename, int nBytes);
+int tfs_mount(char *filename);
+fileDescriptor tfs_openFile(char *name);
+int tfs_writeFile(fileDescriptor FD, char *buffer, int size);
+int tfs_deleteFile(fileDescriptor FD);
+int tfs_closeFile(fileDescriptor FD);
+int tfs_readdir();
+int tfs_readByte(fileDescriptor FD, char *buffer);
+int tfs_seek(fileDescriptor FD, int offset);
+
 //block types
 #define EMPTY 0
 #define SUPERBLOCK 1

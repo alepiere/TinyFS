@@ -1,19 +1,19 @@
-CC = gcc
-CFLAGS = -Wall -g
-PROG = TinyFSDemo
-OBJS = libTinyFS.o libDisk.o tinyFSDemo.o
+TARGET   = TinyFSDemo
+CC       = gcc
+CCFLAGS  = 
+LDFLAGS  = -lm
+SOURCES = libDisk.c libTinyFS.c tinyFSDemo.c
+INCLUDES = $(wildcard *.h)
+OBJECTS  = $(SOURCES:.c=.o)
+DISKS = $(wildcard *.dsk)
 
-all: $(PROG)
+all: $(TARGET)
 
-$(PROG): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+$(TARGET): $(OBJECTS)
+	$(CC) $(LDFLAGS) -o $@ $^
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-tinyFSDemo.o: tinyFSDemo.c libTinyFS.h libTinyFS.h TinyFS_errno.h
-libTinyFS.o: libTinyFS.c libTinyFS.h libTinyFS.h libDisk.h TinyFS_errno.h
-libDisk.o: libDisk.c libDisk.h libTinyFS.h TinyFS_errno.h
+%.o: %.c $(INCLUDES)
+	$(CC) $(CCFLAGS) -c -o $@ $<
 
 clean:
-	rm -f $(PROG) $(OBJS)
+	rm -f $(TARGET) $(OBJECTS) $(DISKS)
