@@ -823,13 +823,14 @@ time_t tfs_readFileInfo(fileDescriptor FD){
 int tfs_rename(fileDescriptor FD, char* newName){
  /* renames a file. New name should be passed in. File has to be open. */
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
+    printf("renaming");
     if (file == NULL)
     {
         fprintf(stderr, "Error: File not found.\n");
         return FILE_NOT_FOUND_ERROR;
     }
     strcpy(file->filename, newName);
-    printf("File renamed successfully.\n");
+    printf("File renamed successfully to %s.\n", newName);
     return 1;
 }
 
@@ -881,6 +882,7 @@ int main()
     char filename[] = "tinyfs_disk";
     int disk_size = 4096; // 2 KB disk size
     int result = tfs_mkfs(filename, disk_size);
+    char* newName = "ANNIE";
 
     // Check if tfs_mkfs succeeded
     if (result != 1)
@@ -909,5 +911,6 @@ int main()
     tfs_openFile("e");
     printf("TinyFS file system created successfully.\n");
     tfs_readdir();
+    tfs_rename(fd, newName);
     return 1;
 }
