@@ -14,5 +14,6 @@
 #define FILE_NOT_FOUND_ERROR -11
 #define END_OF_FILE_ERROR -12
 #define READ_ERROR -13
+#define NAME_LENGTH_ERROR -14
 
 #endif 
