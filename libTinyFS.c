@@ -649,6 +649,52 @@ int tfs_seek(fileDescriptor FD, int offset)
     return 1; // make success message thats meainful
 }
 
+// EXTRA CREDIT :,)
+
+// Timestamps (10%)
+time_t tfs_readFileInfo(fileDescriptor FD){
+/* returns the file’s creation time or all info  
+    should be stored on the INODE*/
+
+    FileEntry *current = openFileTable;
+    while (current != NULL) {
+        if (current->fileDescriptor == FD) {
+            // Return the file's creation time
+            return current->creation_time;
+        }
+        current = current->next;
+    }
+    // Return -1 if file not found
+    return 0;
+}
+
+
+// Directory listing and file renaming (10%) 
+int tfs_rename(fileDescriptor FD, char* newName){
+ /* renames a file. New name should be passed in. File has to be open. */
+    FileEntry *file = findFileEntryByFD(openFileTable, FD);
+    if (file == NULL)
+    {
+        fprintf(stderr, "Error: File not found.\n");
+        return FILE_NOT_FOUND_ERROR;
+    }
+    strcpy(file->filename, newName);
+    printf("File renamed successfully.\n");
+    return 1;
+}
+
+int tfs_readdir() {
+/* lists all the files and directories on the disk, print the
+list to stdout -- Note: if you don’t have hierarchical directories, this just reads
+the root directory aka “all files” */
+    if (!mounted)
+    {
+        fprintf(stderr, "Error: No file system mounted.\n");
+        return MOUNTED_ERROR;
+    }
+    return 1;
+}
+
 int main()
 {
     // Create a TinyFS file system with a specified size

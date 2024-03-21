@@ -15,7 +15,7 @@ int openDisk(char *filename, int nBytes)
     }
 
     off_t diskSize = nBytes - (nBytes % BLOCKSIZE);
-    printf("disksize is %d\n", diskSize);
+    printf("disksize is %lld\n", diskSize);
     if (diskSize == 0)
     {
         diskSize = BLOCKSIZE; // Ensure disk size is at least BLOCKSIZE bytes
