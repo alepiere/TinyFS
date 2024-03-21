@@ -457,7 +457,6 @@ fileDescriptor tfs_openFile(char *name)
     inode[0] = 0x02; // Set the first byte to 0x02 to represent inode
     //INODE STRUCTURE [0] = 0x02, [1] = 0x44, [2] = block number of first block of file, [3] = empty [4-12] = file name and byte 12 will be null character
     // for is file name is exactly 8 characters long
-    char *name = "example";
     if (strlen(name) > 8)
     {
         fprintf(stderr, "Error: File name exceeds the maximum limit of 8 characters.\n");
@@ -574,7 +573,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
         fprintf(stderr, "Error: No free blocks available.\n");
         return FREE_BLOCK_ERROR;
     }
-    unsigned char *fileContent[BLOCKSIZE];
+    unsigned char fileContent[BLOCKSIZE];
     if (readBlock(disk, free_block, fileContent) == -1)
     {
         fprintf(stderr, "Error: Unable to read file content from disk.\n");
