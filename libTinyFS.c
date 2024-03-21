@@ -8,6 +8,7 @@
 #include "fdLL.c"
 #include "bitmap.c"
 #include <sys/fcntl.h>
+#include <time.h>
 
 int mounted = 0;     // 1 if file system is mounted, 0 if not
 char *currMountedFS; // Name of the currently mounted file system
@@ -384,6 +385,7 @@ fileDescriptor tfs_openFile(char *name)
     mounted file system. Creates a dynamic resource table entry for the file,
     and returns a file descriptor (integer) that can be used to reference
     this entry while the filesystem is mounted. */
+    time_t t;
     if (!mounted)
     {
         fprintf(stderr, "Error: No file system mounted.\n");
@@ -474,6 +476,39 @@ fileDescriptor tfs_openFile(char *name)
     printf("\n");
     //inode[12] will be null character which blocks are set to by default
     //inode[13] and [inode 14] will be file size which are set to 0/null again by default
+
+    //inode[15] will be creation timestamp (8 bytes)
+    time(&t);
+    struct tm *local_time = localtime(&t);
+
+    printf("AAA Current local time: %02d:%02d:%02d\n", local_time->tm_hour, local_time->tm_min, local_time->tm_sec);
+    printf("Size of time_t: %zu bytes\n", sizeof(t));
+
+    // creation time 
+    for (int i = 15; i < 15 + sizeof(time_t); i++)
+    {
+        inode[i] = *((unsigned char*)&t + i); // Store each byte of time_t starting at byte 15
+    }
+
+    // modification time
+    for (int i = 24; i < 24 + sizeof(time_t); i++)
+    {
+        inode[i] = *((unsigned char*)&t + i); // Store each byte of time_t starting at byte 15
+    }
+
+
+    // access time 
+    for (int i = 33; i < 33 + sizeof(time_t); i++)
+    {
+        inode[i] = *((unsigned char*)&t + i); // Store each byte of time_t starting at byte 15
+    }
+
+    printf("inode CREATION time: ");
+    for (int i = 0; i < BLOCKSIZE; i++)
+    {
+        printf("%02x ", inode[i]);
+    }
+    printf("\n");
 
     if (writeBlock(disk, 1, rootDirectory) == -1)
     {
@@ -756,14 +791,24 @@ time_t tfs_readFileInfo(fileDescriptor FD){
 /* returns the file’s creation time or all info  
     should be stored on the INODE*/
 
-    FileEntry *current = openFileTable;
-    while (current != NULL) {
-        if (current->fileDescriptor == FD) {
-            // Return the file's creation time
-            return current->creation_time;
-        }
-        current = current->next;
+    FileEntry *file = findFileEntryByFD(openFileTable, FD);
+    if (file == NULL)
+    {
+        fprintf(stderr, "Error: File not found.\n");
+        return FILE_NOT_FOUND_ERROR;
     }
+    int inode_ind = file->inode_index;
+    unsigned char inodeBlock[BLOCKSIZE];
+    readBlock(disk, inode_ind, inodeBlock);
+    time_t creation_time = *((time_t*)(inodeBlock[15]));
+    printf("File creation time: %s\n", ctime(&creation_time));
+
+    time_t modification_time = *((time_t*)(inodeBlock[24]));
+    printf("File creation time: %s\n", ctime(&modification_time));
+
+    time_t access_time = *((time_t*)(inodeBlock[33]));
+    printf("File creation time: %s\n", ctime(&access_time));
+
     // Return -1 if file not found
     return 0;
 }
