@@ -383,12 +383,6 @@ fileDescriptor tfs_openFile(char *name)
     printf("\n");
     // inode[12] will be null character which blocks are set to by default
     // inode[13] and [inode 14] will be file size which are set to 0/null again by default
-    if (writeBlock(disk, inode_index, inode) == -1)
-    {
-        fprintf(stderr, "Error: Unable to write inode to disk.\n");
-        closeDisk(disk);
-        return WRITE_ERROR;
-    }
 
     // inode[15] will be creation timestamp (8 bytes)
     time(&t);
@@ -436,7 +430,12 @@ fileDescriptor tfs_openFile(char *name)
     {
         inode[i + 23] = sec_bytes[i];
     }
-    
+    if (writeBlock(disk, inode_index, inode) == -1)
+    {
+        fprintf(stderr, "Error: Unable to write inode to disk.\n");
+        closeDisk(disk);
+        return WRITE_ERROR;
+    }
 
     // // creation time
     // for (int i = 15; i < 15 + sizeof(time_t); i++)
