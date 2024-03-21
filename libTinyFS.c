@@ -8,6 +8,7 @@
 #include "fdLL.c"
 #include "bitmap.c"
 #include <sys/fcntl.h>
+#include <time.h>
 
 int mounted = 0;     // 1 if file system is mounted, 0 if not
 char *currMountedFS; // Name of the currently mounted file system
@@ -75,28 +76,28 @@ int writeBitmap(int disk, Bitmap *bitmap)
         closeDisk(disk);
         return BITMAP_SIZE_ERROR;
     }
-    printf("sizeof bitmap = %zu\n", sizeof(Bitmap));
-    printf("Bitmap size: %d\n", bitmap->bitmap_size);
-    printf("Bitmap contents: ");
-    for (int i = 0; i < bitmap->bitmap_size; i++)
-    {
-        printf("%d ", bitmap->free_blocks[i]);
-    }
-    printf("\n");
+    // printf("sizeof bitmap = %zu\n", sizeof(Bitmap));
+    // printf("Bitmap size: %d\n", bitmap->bitmap_size);
+    // printf("Bitmap contents: ");
+    // for (int i = 0; i < bitmap->bitmap_size; i++)
+    // {
+    //     printf("%d ", bitmap->free_blocks[i]);
+    // }
+    // printf("\n");
     if (write(disk, bitmap, sizeof(Bitmap)) != sizeof(Bitmap))
     {
         fprintf(stderr, "Error: Unable to write bitmap data.\n");
         closeDisk(disk);
         return WRITE_ERROR;
     }
-    printf("Bitmap data written.\n");
+    // printf("Bitmap data written.\n");
     if (write(disk, bitmap->free_blocks, bitmap->bitmap_size) != bitmap->bitmap_size)
     {
         fprintf(stderr, "Error: Unable to write bitmap data.\n");
         closeDisk(disk);
         return WRITE_ERROR;
     }
-    printf("Bitmap contents written.\n");
+    // printf("Bitmap contents written.\n");
     return 1;
 }
 
@@ -290,6 +291,7 @@ fileDescriptor tfs_openFile(char *name)
     mounted file system. Creates a dynamic resource table entry for the file,
     and returns a file descriptor (integer) that can be used to reference
     this entry while the filesystem is mounted. */
+    time_t t;
     if (!mounted)
     {
         fprintf(stderr, "Error: No file system mounted.\n");
@@ -387,6 +389,39 @@ fileDescriptor tfs_openFile(char *name)
         closeDisk(disk);
         return WRITE_ERROR;
     }
+
+    //inode[15] will be creation timestamp (8 bytes)
+    time(&t);
+    struct tm *local_time = localtime(&t);
+
+    printf("AAA Current local time: %02d:%02d:%02d\n", local_time->tm_hour, local_time->tm_min, local_time->tm_sec);
+    printf("Size of time_t: %zu bytes\n", sizeof(t));
+
+    // creation time 
+    for (int i = 15; i < 15 + sizeof(time_t); i++)
+    {
+        inode[i] = *((unsigned char*)&t + i); // Store each byte of time_t starting at byte 15
+    }
+
+    // modification time
+    for (int i = 24; i < 24 + sizeof(time_t); i++)
+    {
+        inode[i] = *((unsigned char*)&t + i); // Store each byte of time_t starting at byte 15
+    }
+
+
+    // access time 
+    for (int i = 33; i < 33 + sizeof(time_t); i++)
+    {
+        inode[i] = *((unsigned char*)&t + i); // Store each byte of time_t starting at byte 15
+    }
+
+    printf("inode CREATION time: ");
+    for (int i = 0; i < BLOCKSIZE; i++)
+    {
+        printf("%02x ", inode[i]);
+    }
+    printf("\n");
 
     if (writeBlock(disk, 1, rootDirectory) == -1)
     {
@@ -747,6 +782,62 @@ int tfs_seek(fileDescriptor FD, int offset)
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     file->offset = offset;
     return 1; // make success message thats meainful
+}
+
+// EXTRA CREDIT :,)
+
+// Timestamps (10%)
+time_t tfs_readFileInfo(fileDescriptor FD){
+/* returns the file’s creation time or all info  
+    should be stored on the INODE*/
+
+    FileEntry *file = findFileEntryByFD(openFileTable, FD);
+    if (file == NULL)
+    {
+        fprintf(stderr, "Error: File not found.\n");
+        return FILE_NOT_FOUND_ERROR;
+    }
+    int inode_ind = file->inode_index;
+    unsigned char inodeBlock[BLOCKSIZE];
+    readBlock(disk, inode_ind, inodeBlock);
+    time_t creation_time = *((time_t*)(inodeBlock[15]));
+    printf("File creation time: %s\n", ctime(&creation_time));
+
+    time_t modification_time = *((time_t*)(inodeBlock[24]));
+    printf("File creation time: %s\n", ctime(&modification_time));
+
+    time_t access_time = *((time_t*)(inodeBlock[33]));
+    printf("File creation time: %s\n", ctime(&access_time));
+
+    // Return -1 if file not found
+    return 0;
+}
+
+
+// Directory listing and file renaming (10%) 
+int tfs_rename(fileDescriptor FD, char* newName){
+ /* renames a file. New name should be passed in. File has to be open. */
+    FileEntry *file = findFileEntryByFD(openFileTable, FD);
+    if (file == NULL)
+    {
+        fprintf(stderr, "Error: File not found.\n");
+        return FILE_NOT_FOUND_ERROR;
+    }
+    strcpy(file->filename, newName);
+    printf("File renamed successfully.\n");
+    return 1;
+}
+
+int tfs_readdir() {
+/* lists all the files and directories on the disk, print the
+list to stdout -- Note: if you don’t have hierarchical directories, this just reads
+the root directory aka “all files” */
+    if (!mounted)
+    {
+        fprintf(stderr, "Error: No file system mounted.\n");
+        return MOUNTED_ERROR;
+    }
+    return 1;
 }
 
 int main()

@@ -11,6 +11,9 @@ typedef struct FileEntry {
     int inode_index;                       // Index of the inode
     int file_index;                       // Index of the first block of file
     int offset;                            // Offset of the file
+    time_t creation_time;                    // Creation timestamp
+    time_t modification_time;                 // Modification timestamp
+    time_t access_time;                      // Access timestamp
     struct FileEntry* next;       // Pointer to the next file entry
 } FileEntry;
 
@@ -100,4 +103,3 @@ FileEntry* findFileEntryByFD(FileEntry *head, fileDescriptor fileDescriptor) {
     }
     return NULL; // Return NULL if the FileEntry is not found
 }
-
