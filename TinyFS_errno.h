@@ -15,5 +15,16 @@
 #define END_OF_FILE_ERROR -12
 #define READ_ERROR -13
 #define NAME_LENGTH_ERROR -14
+#define MKFS_SUCCESS 1
+#define MOUNT_SUCCESS 2
+#define UNMOUNT_SUCCESS 3
+#define READDIR_SUCCESS 4
+#define RENAME_SUCCESS 5
+#define INFO_SUCCESS 6
+#define SEEK_SUCCESS 7
+#define READ_SUCCESS 8
+#define DELETE_SUCCESS 9
+#define WRITE_SUCCESS 10
+
 
 #endif 
