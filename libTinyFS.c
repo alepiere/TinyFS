@@ -436,6 +436,20 @@ fileDescriptor tfs_openFile(char *name)
         closeDisk(disk);
         return WRITE_ERROR;
     }
+    unsigned char testInode[BLOCKSIZE];
+    if (readBlock(disk, inode_index, testInode) == -1)
+    {
+        fprintf(stderr, "Error: Unable to read root directory from disk.\n");
+        closeDisk(disk);
+        return DISK_READ_ERROR;
+    }
+    // Print the contents of inodes in bytes
+    printf("inode contents with CREATION TIME: and inode index is %d\n", inode_index);
+    for (int i = 0; i < BLOCKSIZE; i++)
+    {
+        printf("%02x ", testInode[i]);
+    }
+    printf("\n");
 
     // // creation time
     // for (int i = 15; i < 15 + sizeof(time_t); i++)
@@ -454,14 +468,6 @@ fileDescriptor tfs_openFile(char *name)
     // {
     //     inode[i] = *((unsigned char *)&t + i); // Store each byte of time_t starting at byte 15
     // }
-
-    printf("inode CREATION time: ");
-    for (int i = 0; i < BLOCKSIZE; i++)
-    {
-        printf("%02x ", inode[i]);
-    }
-    printf("\n");
-
     if (writeBlock(disk, 1, rootDirectory) == -1)
     {
         fprintf(stderr, "Error: Unable to write root directory to disk.\n");
@@ -844,16 +850,50 @@ time_t tfs_readFileInfo(fileDescriptor FD)
         return FILE_NOT_FOUND_ERROR;
     }
     int inode_ind = file->inode_index;
+    printf("inode index is %d\n", inode_ind);
     unsigned char inodeBlock[BLOCKSIZE];
+    // Print the contents of the inodeBlock
+    printf("inodeBlock contents in time thing: ");
+    for (int i = 0; i < BLOCKSIZE; i++)
+    {
+        printf("%02x ", inodeBlock[i]);
+    }
+    printf("\n");
     readBlock(disk, inode_ind, inodeBlock);
-    time_t creation_time = *((time_t *)(inodeBlock[15]));
-    printf("File creation time: %s\n", ctime(&creation_time));
+    // Read the unsigned bytes from inodeBlock[15] to inodeBlock[18]
+    unsigned char hour_bytes[4];
+    for (int i = 0; i < 4; i++)
+    {
+        hour_bytes[i] = inodeBlock[15 + i];
+    }
+    unsigned char min_bytes[4];
+    for (int i = 0; i < 4; i++)
+    {
+        hour_bytes[i] = inodeBlock[19 + i];
+    }
+    unsigned char sec_bytes[4];
+    for (int i = 0; i < 4; i++)
+    {
+        hour_bytes[i] = inodeBlock[23 + i];
+    }
+    // Convert the bytes to local_time->tm_hour
+    struct tm local_time;
+    local_time.tm_hour = *((int *)hour_bytes);
+    local_time.tm_min = *((int *)min_bytes);
+    local_time.tm_sec = *((int *)sec_bytes);
+    printf("AAA Current local time: %02d:%02d:%02d\n", local_time.tm_hour, local_time.tm_min, local_time.tm_sec);
 
-    time_t modification_time = *((time_t *)(inodeBlock[24]));
-    printf("File creation time: %s\n", ctime(&modification_time));
+    // Print the local_time->tm_hour
+    // printf("Local time hour: %d\n", local_time.tm_hour);
 
-    time_t access_time = *((time_t *)(inodeBlock[33]));
-    printf("File creation time: %s\n", ctime(&access_time));
+    // time_t creation_time = *((time_t *)(inodeBlock[15]));
+    // printf("File creation time: %s\n", ctime(&creation_time));
+
+    // time_t modification_time = *((time_t *)(inodeBlock[24]));
+    // printf("File creation time: %s\n", ctime(&modification_time));
+
+    // time_t access_time = *((time_t *)(inodeBlock[33]));
+    // printf("File creation time: %s\n", ctime(&access_time));
 
     // Return -1 if file not found
     return 0;
@@ -935,22 +975,23 @@ int main()
     printf("Length of fileContent: %zu\n", strlen(fileContent));
     char *ptr = fileContent;
     int fd = tfs_openFile("testfile");
-    printf("fd is %d for testfile\n", fd);
-    int len = strlen(fileContent);
-    tfs_writeFile(fd, ptr, len);
-    printf("file written correctly\n");
-    int fd2 = tfs_openFile("testfil3");
-    char testData[] = "Test file d";
-    char *newptr = testData;
-    tfs_writeFile(fd, newptr, 12);
-    tfs_writeFile(fd2, newptr, 12);
-    tfs_writeFile(fd2, ptr, len);
-    tfs_writeFile(fd, ptr, len);
-    tfs_openFile("testfile");
-    tfs_openFile("testfil3");
-    tfs_openFile("e");
     tfs_readFileInfo(fd);
-    printf("TinyFS file system created successfully.\n");
-    tfs_readdir();
+    // printf("fd is %d for testfile\n", fd);
+    // int len = strlen(fileContent);
+    // tfs_writeFile(fd, ptr, len);
+    // printf("file written correctly\n");
+    // int fd2 = tfs_openFile("testfil3");
+    // char testData[] = "Test file d";
+    // char *newptr = testData;
+    // tfs_writeFile(fd, newptr, 12);
+    // tfs_writeFile(fd2, newptr, 12);
+    // tfs_writeFile(fd2, ptr, len);
+    // tfs_writeFile(fd, ptr, len);
+    // tfs_openFile("testfile");
+    // tfs_openFile("testfil3");
+    // tfs_openFile("e");
+    // tfs_readFileInfo(fd);
+    // printf("TinyFS file system created successfully.\n");
+    // tfs_readdir();
     return 1;
 }
