@@ -41,11 +41,11 @@ FileEntry *createFileEntry(char *filename, fileDescriptor fileDescriptor, int in
 }
 
 // add a new FileEntry to the linked list
-void insertFileEntry(FileEntry *head, FileEntry *newFileEntry) {
-    if (head == NULL) {
-        head = newFileEntry;
+void insertFileEntry(FileEntry **head, FileEntry *newFileEntry) {
+    if (*head == NULL) {
+        *head = newFileEntry;
     } else {
-        FileEntry *current = head;
+        FileEntry *current = *head;
         while (current->next != NULL) {
             current = current->next;
         }

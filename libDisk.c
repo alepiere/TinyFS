@@ -98,7 +98,6 @@ int writeBlock(int disk, int bNum, void *block)
     //     printf("%02X ", *((unsigned char *)block + i));
     // }
     // printf("\n");
-
     int flags = fcntl(disk, F_GETFL);
     if (flags == -1)
     {
@@ -109,6 +108,7 @@ int writeBlock(int disk, int bNum, void *block)
     {
         return -1;
     }
+    printf("offset is %d\n", offset);
     int bytesWritten = write(disk, block, BLOCKSIZE);
     if (bytesWritten == -1)
     {
@@ -120,5 +120,6 @@ int writeBlock(int disk, int bNum, void *block)
         return -1;
     }
     printf("bytes written is %d\n", bytesWritten);
+    printf("returning\n");
     return 0;
 }

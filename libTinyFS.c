@@ -213,100 +213,6 @@ int tfs_mkfs(char *filename, int nBytes)
             return WRITE_ERROR;
         }
         printf("tfs create has all went through\n");
-        // size_t data_size = sizeof(Bitmap) + bitmap->bitmap_size;
-        // unsigned char data = 0x01; // Modify the data to be written
-        // if (write(disk, &data, sizeof(data)) != sizeof(data))
-        // {
-        //     fprintf(stderr, "Error: Unable to write physical data.\n");
-        //     return WRITE_ERROR;
-        // }
-        // data = 0x44; // Modify data to write to be magic number
-        // if (write(disk, &data, sizeof(data)) != sizeof(data))
-        // {
-        //     fprintf(stderr, "Error: Unable to write physical data.\n");
-        //     return WRITE_ERROR;
-        // }
-        // Initialize the rest of the data to 0x00
-        // unsigned char zeroData = 0x00;
-        // put magic number and headers in free blocks LOOOOOOOOOOOOOOOOOOOK
-        // calculate the disk size and write the rest of the data
-        // off_t diskSize = nBytes;
-        // 4 is next empty block (block type = 0, magic num = 1, block address = 2, empty = 3)
-        // int remainingBytes = diskSize - 2;
-        // int start_location = lseek(disk, 0, SEEK_CUR);
-        // for (int i = 0; i < remainingBytes; i++)
-        // {
-        //     if (write(disk, &zeroData, sizeof(zeroData)) != sizeof(zeroData))
-        //     {
-        //         fprintf(stderr, "Error: Unable to write physical data.\n");
-        //         return WRITE_ERROR;
-        //     }
-        //     off_t currentOffset = lseek(disk, 0, SEEK_CUR); // Get current offset
-        //     if (currentOffset == -1)
-        //     {
-        //         fprintf(stderr, "Error: Unable to get current file offset.\n");
-        //         return SEEK_ERROR;
-        //     }
-        //     // printf("%d bytes of '0x00' written at location %ld with start location %d\n", i + 1, currentOffset, start_location);
-        // }
-
-        // Start the bitmap
-        // Bitmap *bitmap = create_bitmap(diskSize - BLOCKSIZE, BLOCKSIZE);
-        // size_t data_size = sizeof(Bitmap) + bitmap->bitmap_size;
-        // bit map only able to hold max of 232 * 8 blocks worth of data
-        // 1856 should be enough blocks to store all the data on our system and if we need more in the future
-        // we can alter how bitmap is store structurally
-        // int returnStatus = writeBitmap(disk, bitmap);
-        // if (returnStatus != 1)
-        // {
-        //     return returnStatus; // set to a specific error code later
-        // }
-        // if (lseek(disk, ROOT_DIRECTORY_LOC, SEEK_SET) == -1)
-        // {
-        //     fprintf(stderr, "Error: Unable to seek to root directory block.\n");
-        //     closeDisk(disk);
-        //     return SEEK_ERROR;
-        // }
-        // data = 0x02; // 2 for inode block
-        // if (write(disk, &data, sizeof(data)) != sizeof(data))
-        // {
-        //     fprintf(stderr, "Error: Unable to write physical data.\n");
-        //     return WRITE_ERROR;
-        // }
-        // data = 0x44; // Modify data to write to be magic number
-        // if (write(disk, &data, sizeof(data)) != sizeof(data))
-        // {
-        //     fprintf(stderr, "Error: Unable to write physical data.\n");
-        //     return WRITE_ERROR;
-        // }
-
-        // off_t block_offset = 512;
-        // for (int i = 0; block_offset + (256 * i) < nBytes; i++)
-        // {
-        //     if (lseek(disk, block_offset + (256 * i), SEEK_SET) == -1)
-        //     {
-        //         fprintf(stderr, "Error: Unable to seek to free block.\n");
-        //         closeDisk(disk);
-        //         return SEEK_ERROR;
-        //     }
-        //     // write block type (4 = free block)
-        //     data = 0x04;
-        //     if (write(disk, &data, sizeof(data)) != sizeof(data))
-        //     {
-        //         fprintf(stderr, "Error: Unable to write block type to free block.\n");
-        //         closeDisk(disk);
-        //         return WRITE_ERROR;
-        //     }
-        //     // write magic number (0x44)
-        //     data = 0x44;
-        //     if (write(disk, &data, sizeof(data)) != sizeof(data))
-        //     {
-        //         fprintf(stderr, "Error: Unable to write magic number to free block.\n");
-        //         closeDisk(disk);
-        //         return WRITE_ERROR;
-        //     }
-        // }
-
         // make success code for mkfs
     }
     return 1; // make meaningfull succss error code
@@ -406,6 +312,7 @@ fileDescriptor tfs_openFile(char *name)
 
     // File does not exist, creates a dynamic resource table entry for the file, returns a file descriptor
     int fd = fds++;
+    printf("file descriptor %d created for file %s\n", fd, name);
 
     int free_block = find_free_blocks_of_size(mountedBitmap, 1);
     printf("free block is %d\n", free_block);
@@ -447,8 +354,8 @@ fileDescriptor tfs_openFile(char *name)
             break;
         }
     }
-    printf("found space for next inode mapping at %d\n");
-    //now create contents for inode
+    printf("found space for next inode mapping\n");
+    // now create contents for inode
     unsigned char inode[BLOCKSIZE];
     if (readBlock(disk, inode_index, inode) == -1)
     {
@@ -457,8 +364,8 @@ fileDescriptor tfs_openFile(char *name)
         return DISK_READ_ERROR;
     }
     inode[0] = 0x02; // Set the first byte to 0x02 to represent inode
-    //INODE STRUCTURE [0] = 0x02, [1] = 0x44, [2] = block number of first block of file, [3] = empty [4-12] = file name and byte 12 will be null character
-    // for is file name is exactly 8 characters long
+    // INODE STRUCTURE [0] = 0x02, [1] = 0x44, [2] = block number of first block of file, [3] = empty [4-12] = file name and byte 12 will be null character
+    //  for is file name is exactly 8 characters long
     if (strlen(name) > 8)
     {
         fprintf(stderr, "Error: File name exceeds the maximum limit of 8 characters.\n");
@@ -466,8 +373,7 @@ fileDescriptor tfs_openFile(char *name)
     }
     for (int i = 4; i < 12; i++)
     {
-        inode[i] = name[i-4];
-        printf("Writing %c to inode\n", name[i-4]);
+        inode[i] = name[i - 4];
     }
     printf("inode contents: ");
     for (int i = 0; i < BLOCKSIZE; i++)
@@ -475,8 +381,8 @@ fileDescriptor tfs_openFile(char *name)
         printf("%02x ", inode[i]);
     }
     printf("\n");
-    //inode[12] will be null character which blocks are set to by default
-    //inode[13] and [inode 14] will be file size which are set to 0/null again by default
+    // inode[12] will be null character which blocks are set to by default
+    // inode[13] and [inode 14] will be file size which are set to 0/null again by default
     if (writeBlock(disk, inode_index, inode) == -1)
     {
         fprintf(stderr, "Error: Unable to write inode to disk.\n");
@@ -572,7 +478,7 @@ fileDescriptor tfs_openFile(char *name)
     // }
     // LOOOOOOOOOOK implement logic if we run out of space for inodes by allocating a new block for more inode space
 
-    insertFileEntry(openFileTable, newFileEntry);
+    insertFileEntry(&openFileTable, newFileEntry);
 
     /* find first free location to place an inode block */
     /* add a new entry in drt that refers to this filename
@@ -597,6 +503,16 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     done. Returns success/error codes. */
     // subtract 4 from block_size
     int num_blocks = (size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
+    // Iterate through all fileEntries in the openFileTable and print the fd
+    printf("File Descriptors in openFileTable: ");
+    FileEntry *allFileTable = openFileTable;
+    while (allFileTable != NULL)
+    {
+        printf("%d ", allFileTable->fileDescriptor);
+        allFileTable = allFileTable->next;
+    }
+    printf("\n");
+    
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     if (file == NULL)
     {
@@ -605,17 +521,36 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     }
     // check if there is data already written to the file and if so deallocate it
     if (file->file_size > 0)
-    {
+    {   
+        printf("deleting old data RN\n");
+        int file_index = file->file_index;
         int prev_num_blocks = (file->file_size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
+        printf("prev num blocks is %d and file_index is %d for fd %d\n", prev_num_blocks, file_index, file->fileDescriptor);
+        char freeBlock[BLOCKSIZE];
+        freeBlock[0] = 0x04;
+        freeBlock[1] = 0x44;
+        for (int i = 2; i < BLOCKSIZE; i++)
+        {
+            freeBlock[i] = 0x00;
+        }
+        for (int i = 0; i < prev_num_blocks; i++)
+        {
+            if (writeBlock(disk, file_index + i, freeBlock) == -1)
+            {
+                fprintf(stderr, "Error: Unable to write free block to disk.\n");
+                closeDisk(disk);
+                return WRITE_ERROR;
+            }
+            free_block(mountedBitmap, file->file_index + i);
+        }
         // deallocate previous blocks allocated to a file
         free_num_blocks(mountedBitmap, file->inode_index, prev_num_blocks);
         // update file size to be 0 now temporarily until we write new data
         file->file_size = 0;
-    } else {
-
     }
     // find free blocks for new data for file
     int free_block = find_free_blocks_of_size(mountedBitmap, num_blocks);
+    file->file_index = free_block;
     if (free_block == -2)
     {
         fprintf(stderr, "Error: No free blocks available.\n");
@@ -635,37 +570,97 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     int offset = 4;
     // calculate the block number of next block to link blocks in a file system
     int next_block = free_block + 1;
-    while (remaining_size > 0) {
+    int blocks_written = 1;
+    while (remaining_size > 0)
+    {
         int current_chunk_size = (remaining_size < chunk_size) ? remaining_size : chunk_size;
-        for (i = 0; i < current_chunk_size; i++) {
+        printf("current chunk size is %d\n", current_chunk_size);
+        for (i = 0; i < current_chunk_size; i++)
+        {
             fileContent[offset + i] = buffer[i];
         }
-        offset += current_chunk_size;
+        //offset += current_chunk_size;
         remaining_size -= current_chunk_size;
+        printf("remaining size is %d\n", remaining_size);
 
         // Fill the remaining space in the block with 0x00 if current_chunk_size is less than 252
-        if (current_chunk_size < chunk_size) {
-            for (i = current_chunk_size; i < chunk_size; i++) {
+        if (current_chunk_size < chunk_size)
+        {
+            for (i = current_chunk_size; i < chunk_size; i++)
+            {
                 fileContent[offset + i] = 0x00;
+                //printf("i is %d\n", i+offset);
             }
         }
-        if (remaining_size != 0){
-            if (next_block > 255){
+        if (remaining_size != 0)
+        {
+            if (next_block > 255)
+            {
                 fprintf(stderr, "next block size needs to be less than 255 to fit on byte.\n");
                 closeDisk(disk);
                 return -4; // make an error code
             }
-            //set the link to next block for file data if there is still more data to be written
+            // set the link to next block for file data if there is still more data to be written
             fileContent[2] = (unsigned char)next_block;
         }
 
         // write the modified fileContent back to disk
-        if (writeBlock(disk, free_block, fileContent) == -1) {
+        if (writeBlock(disk, free_block, fileContent) == -1)
+        {
             fprintf(stderr, "Error: Unable to write file content to disk.\n");
             closeDisk(disk);
             return WRITE_ERROR;
         }
+        // Print the block data written in bytes
+        printf("Block %d data written: ", blocks_written++);
+        for (i = 0; i < BLOCKSIZE; i++)
+        {
+            printf("%02x ", fileContent[i]);
+        }
+        printf("\n");
     }
+    file->file_size = size;
+    printf("after editing file size\n");
+    unsigned char inode[BLOCKSIZE];
+    if (readBlock(disk, file->inode_index, inode) == -1)
+    {
+        fprintf(stderr, "Error: Unable to read inode from disk.\n");
+        closeDisk(disk);
+        return DISK_READ_ERROR;
+    }
+    printf("block read\n");
+    if (free_block > 255)
+    {
+        fprintf(stderr, "next block size needs to be less than 255 to fit on byte.\n");
+        closeDisk(disk);
+        return -4; // make an error code
+    }
+    // set the pointer to beginning of file in inode block
+    inode[2] = (unsigned char)free_block;
+    if (size > 65535)
+    {
+        fprintf(stderr, "file size needs to be less than 65535 to fit on 2 bytes.\n");
+        closeDisk(disk);
+        return -4; // make an error code
+    }
+    // split size into two unsigned char bytes
+    unsigned char size_byte1 = (unsigned char)(size >> 8);
+    unsigned char size_byte2 = (unsigned char)size;
+
+    // write size bytes to index 12 and 13 in inode
+    inode[13] = size_byte1;
+    inode[14] = size_byte2;
+
+    // write updated inode back to disk
+    printf("writing inode back to disk\n");
+    printf("inode_index is %d\n", file->inode_index);
+    if (writeBlock(disk, file->inode_index, inode) == -1)
+    {
+        fprintf(stderr, "Error: Unable to write inode to disk.\n");
+        closeDisk(disk);
+        return WRITE_ERROR;
+    }
+
     // set write block in terms of disk index
     // int write_offset = free_block * 256;
     // int data_written = 0;
@@ -714,6 +709,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
     //     }
     //     write_offset += BLOCKSIZE;
     // }
+    printf("returning in this function\n");
     return 1;
 }
 
@@ -758,6 +754,8 @@ int tfs_readByte(fileDescriptor FD, char *buffer)
     }
 
     // Seek to the current file pointer location
+    // Figure out what block the file pointer is in (file pointer = fileindex + offset)
+    
     off_t file_offset = ROOT_DIRECTORY_LOC + (file->inode_index * BLOCKSIZE) + file->offset;
     if (lseek(disk, file_offset, SEEK_SET) == -1)
     {
@@ -891,6 +889,21 @@ int main()
         return 1;
     }
     tfs_mount("tinyfs_disk");
+    char fileContent[] = "Test file dataelllu333333333312345678765456787656787656787656787656787656781234567890123456789123456789123456789012345678912345678923456789012345678912345678902345678902345678912345678902345678923456789345654676567j98938242331513513531534531513534534567867876789878978787678767876567867865676567876";
+    printf("Length of fileContent: %zu\n", strlen(fileContent));
+    char *ptr = fileContent;
+    int fd = tfs_openFile("testfile");
+    printf("fd is %d for testfile\n", fd);
+    int len = strlen(fileContent);
+    tfs_writeFile(fd, ptr, len);
+    printf("file written correctly\n");
+    int fd2 = tfs_openFile("testfil3");
+    char testData[] = "Test file d";
+    char* newptr = testData;
+    tfs_writeFile(fd, newptr, 12);
+    tfs_writeFile(fd2, newptr, 12);
+    tfs_writeFile(fd2, ptr, len);
+    tfs_writeFile(fd, ptr, len);
     tfs_openFile("testfile");
     tfs_openFile("testfil3");
     tfs_openFile("e");
