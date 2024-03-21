@@ -76,28 +76,21 @@ int writeBitmap(int disk, Bitmap *bitmap)
         closeDisk(disk);
         return BITMAP_SIZE_ERROR;
     }
-    // printf("sizeof bitmap = %zu\n", sizeof(Bitmap));
-    // printf("Bitmap size: %d\n", bitmap->bitmap_size);
-    // printf("Bitmap contents: ");
-    // for (int i = 0; i < bitmap->bitmap_size; i++)
-    // {
-    //     printf("%d ", bitmap->free_blocks[i]);
-    // }
-    // printf("\n");
+    
     if (write(disk, bitmap, sizeof(Bitmap)) != sizeof(Bitmap))
     {
         fprintf(stderr, "Error: Unable to write bitmap data.\n");
         closeDisk(disk);
         return WRITE_ERROR;
     }
-    // printf("Bitmap data written.\n");
+
     if (write(disk, bitmap->free_blocks, bitmap->bitmap_size) != bitmap->bitmap_size)
     {
         fprintf(stderr, "Error: Unable to write bitmap data.\n");
         closeDisk(disk);
         return WRITE_ERROR;
     }
-    // printf("Bitmap contents written.\n");
+
     return 1;
 }
 
@@ -109,6 +102,7 @@ int tfs_mkfs(char *filename, int nBytes)
     file to be a mountable disk. This includes initializing all data to 0x00,
     setting magic numbers, initializing and writing the superblock and
     inodes, etc. Must return a specified success/error code. */
+
     disk = openDisk(filename, nBytes);
     if (disk < 0)
     {
@@ -120,25 +114,22 @@ int tfs_mkfs(char *filename, int nBytes)
         unsigned char superblock[BLOCKSIZE];
         superblock[0] = 0x01; // Set the first byte to 0x01
         superblock[1] = 0x44; // Set the second byte to 0x44 (magic num)
+
         // Set the remaining blocks to 0x00
         for (int i = 2; i < BLOCKSIZE; i++)
         {
             superblock[i] = 0x00;
         }
+
         // we will not write superblock yet, because we want to add bitmap to it first
         unsigned char rootDirectory[BLOCKSIZE];
         rootDirectory[0] = 0x02; // Set the first byte to 0x02
         rootDirectory[1] = 0x44; // Set the second byte to 0x44 (magic num)
+
         for (int i = 2; i < BLOCKSIZE; i++)
         {
             rootDirectory[i] = 0x00;
         }
-        printf("Root Directory contents: ");
-        for (int i = 0; i < BLOCKSIZE; i++)
-        {
-            printf("%02x ", rootDirectory[i]);
-        }
-        printf("\n");
 
         if (writeBlock(disk, 1, rootDirectory) == -1)
         {
@@ -146,13 +137,16 @@ int tfs_mkfs(char *filename, int nBytes)
             closeDisk(disk);
             return WRITE_ERROR;
         }
+
         unsigned char emptyBlock[BLOCKSIZE];
         emptyBlock[0] = 0x04; // Set the first byte to 0x04
         emptyBlock[1] = 0x44; // Set the second byte to 0x44 (magic num)
+
         for (int i = 2; i < BLOCKSIZE; i++)
         {
             emptyBlock[i] = 0x00;
         }
+
         int num_blocks = nBytes / BLOCKSIZE;
         for (int i = 2; i < num_blocks; i++)
         {
@@ -163,6 +157,7 @@ int tfs_mkfs(char *filename, int nBytes)
                 return WRITE_ERROR;
             }
         }
+
         int bitmap_size = (((nBytes / BLOCKSIZE) + 7) / 8);
         Bitmap *bitmap = create_bitmap(bitmap_size, num_blocks, NULL);
         // make sure num+blocks is less than max number of blocks we can store in 2 bytes
@@ -180,6 +175,7 @@ int tfs_mkfs(char *filename, int nBytes)
         }
         unsigned char *bitmap_data = bitmap->free_blocks;
         superblock[4] = (unsigned char)bitmap_size;
+
         // Split num_blocks into two bytes
         unsigned char num_blocks_high_byte = (num_blocks >> 8) & 0xFF; // Most significant byte
         unsigned char num_blocks_low_byte = num_blocks & 0xFF;         // Least significant byte
@@ -194,28 +190,22 @@ int tfs_mkfs(char *filename, int nBytes)
             superblock[i + 7] = bitmap_data[i]; // Start writing from index 7 onwards
             printf("bitmap data is %d\n", bitmap_data[i]);
         }
-        // Print contents of superblock in bytes
-        for (int i = 0; i < BLOCKSIZE; i++)
-        {
-            printf("%02X ", superblock[i]);
-        }
-        printf("\n");
+
         if (writeBlock(disk, 0, superblock) == -1)
         {
             fprintf(stderr, "Error: Unable to write superblock to disk.\n");
             closeDisk(disk);
             return WRITE_ERROR;
         }
+
         if (writeBlock(disk, 1, rootDirectory) == -1)
         {
             fprintf(stderr, "Error: Unable to write root directory to disk.\n");
             closeDisk(disk);
             return WRITE_ERROR;
         }
-        printf("tfs create has all went through\n");
-        // make success code for mkfs
     }
-    return 1; // make meaningfull succss error code
+    return MKFS_SUCCESS;
 }
 
 int tfs_mount(char *diskname)
@@ -251,30 +241,31 @@ int tfs_mount(char *diskname)
 
     int bitmap_size = superblock_data[4];
     int num_blocks = (superblock_data[5] << 8) | superblock_data[6];
-    printf("bitmap size is %d\n", bitmap_size);
-    printf("num blocks is %d\n", num_blocks);
+
     unsigned char *bitmap_data = (unsigned char *)malloc(bitmap_size);
+
     for (int i = 0; i < bitmap_size; i++)
     {
         bitmap_data[i] = superblock_data[i + 7];
     }
+
     Bitmap *bitmap = create_bitmap(bitmap_size, num_blocks, bitmap_data);
     mountedBitmap = bitmap;
     mounted = 1;
     printf("File system mounted successfully: %s\n", diskname);
     currMountedFS = (char *)malloc(strlen(diskname));
     strcpy(currMountedFS, diskname);
-    return 0;
+    return MOUNT_SUCCESS;
 }
 
 int tfs_unmount(void)
-{
-    /* tfs_mount(char *diskname) “mounts” a TinyFS file system located within
+{    /* tfs_mount(char *diskname) “mounts” a TinyFS file system located within
     ‘diskname’. tfs_unmount(void) “unmounts” the currently mounted file
     system. As part of the mount operation, tfs_mount should verify the file
     system is the correct type. In tinyFS, only one file system may be
     mounted at a time. Use tfs_unmount to cleanly unmount the currently
     mounted file system. Must return a specified success/error code. */
+
     if (!mounted)
     {
         fprintf(stderr, "Error: No file system mounted.\n");
@@ -282,16 +273,16 @@ int tfs_unmount(void)
     }
     mounted = 0;
     printf("File system unmounted successfully.\n");
-    return 0;
+    return UNMOUNT_SUCCESS;
 }
 
 fileDescriptor tfs_openFile(char *name)
-{
-    /* Creates or Opens a file for reading and writing on the currently
+{    /* Creates or Opens a file for reading and writing on the currently
     mounted file system. Creates a dynamic resource table entry for the file,
     and returns a file descriptor (integer) that can be used to reference
     this entry while the filesystem is mounted. */
     time_t t;
+
     if (!mounted)
     {
         fprintf(stderr, "Error: No file system mounted.\n");
@@ -312,36 +303,25 @@ fileDescriptor tfs_openFile(char *name)
 
     // File does not exist, creates a dynamic resource table entry for the file, returns a file descriptor
     int fd = fds++;
-    printf("file descriptor %d created for file %s\n", fd, name);
 
     int free_block = find_free_blocks_of_size(mountedBitmap, 1);
-    printf("free block is %d\n", free_block);
     if (free_block == -2)
     {
         fprintf(stderr, "Error: No free blocks available.\n");
         return FREE_BLOCK_ERROR;
     }
     allocate_block(mountedBitmap, free_block);
-    printf("block allocated\n");
-    // multiply by 256 to get index relative to the disk for later calculations
-    // we store it as a 16 bit number so we can store up to 65536 blocks
-    // seek to root directory block where data is written
-    // if (lseek(disk, ROOT_DIRECTORY_LOC + 4, SEEK_SET) == -1)
-    // {
-    //     fprintf(stderr, "Error: Unable to seek to root directory block.\n");
-    //     closeDisk(disk);
-    //     return SEEK_ERROR;
-    // }
-
     int inode_index = free_block;
     FileEntry *newFileEntry = createFileEntry(name, fd, inode_index);
     unsigned char rootDirectory[BLOCKSIZE];
+
     if (readBlock(disk, 1, rootDirectory) == -1)
     {
         fprintf(stderr, "Error: Unable to read root directory from disk.\n");
         closeDisk(disk);
         return DISK_READ_ERROR;
     }
+
     for (int i = 4; i < 251; i += 2)
     {
         // need two bytes to write up to block 65535 for inodes
@@ -354,7 +334,7 @@ fileDescriptor tfs_openFile(char *name)
             break;
         }
     }
-    printf("found space for next inode mapping\n");
+
     // now create contents for inode
     unsigned char inode[BLOCKSIZE];
     if (readBlock(disk, inode_index, inode) == -1)
@@ -364,6 +344,7 @@ fileDescriptor tfs_openFile(char *name)
         return DISK_READ_ERROR;
     }
     inode[0] = 0x02; // Set the first byte to 0x02 to represent inode
+
     // INODE STRUCTURE [0] = 0x02, [1] = 0x44, [2] = block number of first block of file, [3] = empty [4-12] = file name and byte 12 will be null character
     //  for is file name is exactly 8 characters long
     if (strlen(name) > 8)
@@ -375,12 +356,7 @@ fileDescriptor tfs_openFile(char *name)
     {
         inode[i] = name[i - 4];
     }
-    printf("inode contents: ");
-    for (int i = 0; i < BLOCKSIZE; i++)
-    {
-        printf("%02x ", inode[i]);
-    }
-    printf("\n");
+
     // inode[12] will be null character which blocks are set to by default
     // inode[13] and [inode 14] will be file size which are set to 0/null again by default
     if (writeBlock(disk, inode_index, inode) == -1)
@@ -394,11 +370,6 @@ fileDescriptor tfs_openFile(char *name)
     time(&t);
     struct tm *local_time = localtime(&t);
 
-    printf("AAA Current local time: %02d:%02d:%02d\n", local_time->tm_hour, local_time->tm_min, local_time->tm_sec);
-    printf("Size of time_t: %zu bytes\n", sizeof(t));
-    printf("size of tm_hour is %zu\n", sizeof(local_time->tm_hour));
-    printf("size of tm_min is %zu\n", sizeof(local_time->tm_min));
-    printf("size of tm_sec is %zu\n", sizeof(local_time->tm_sec));
     // Convert tm_hour to bytes
     unsigned char hour_bytes[sizeof(local_time->tm_hour)];
     for (int i = 0; i < sizeof(local_time->tm_hour); i++)
@@ -438,97 +409,26 @@ fileDescriptor tfs_openFile(char *name)
     }
     
 
-    // // creation time
-    // for (int i = 15; i < 15 + sizeof(time_t); i++)
-    // {
-    //     inode[i] = *((unsigned char *)&t + i); // Store each byte of time_t starting at byte 15
-    // }
-
-    // // modification time
-    // for (int i = 24; i < 24 + sizeof(time_t); i++)
-    // {
-    //     inode[i] = *((unsigned char *)&t + i); // Store each byte of time_t starting at byte 15
-    // }
-
-    // // access time
-    // for (int i = 33; i < 33 + sizeof(time_t); i++)
-    // {
-    //     inode[i] = *((unsigned char *)&t + i); // Store each byte of time_t starting at byte 15
-    // }
-
-    printf("inode CREATION time: ");
-    for (int i = 0; i < BLOCKSIZE; i++)
-    {
-        printf("%02x ", inode[i]);
-    }
-    printf("\n");
-
     if (writeBlock(disk, 1, rootDirectory) == -1)
     {
         fprintf(stderr, "Error: Unable to write root directory to disk.\n");
         closeDisk(disk);
         return WRITE_ERROR;
     }
+
     if (readBlock(disk, 1, rootDirectory) == -1)
     {
         fprintf(stderr, "Error: Unable to read root directory from disk.\n");
         closeDisk(disk);
         return DISK_READ_ERROR;
     }
-    // Print the contents of rootDirectory in bytes
-    printf("Root Directory contents: ");
-    for (int i = 0; i < BLOCKSIZE; i++)
-    {
-        printf("%02x ", rootDirectory[i]);
-    }
-    printf("\n");
-
-    // ensure that inode is written as two bytes so we can write up to block 65536 for inodes
-    // uint16_t byte_inode = (uint16_t)inode_index;
-    // we will write to inode mappings (inode offset) to bytes after 4th byte(index 4 onward)
-    // uint16_t value;
-    // unsigned char buffer[sizeof(uint16_t)];
-    // for (int i = 0; i < 250; i += 2)
-    // {
-    //     int datasize = read(disk, buffer, sizeof(buffer));
-    //     printf("datasize is %d\n", datasize);
-    //     if (datasize != sizeof(buffer))
-    //     {
-    //         fprintf(stderr, "buffer data is %s and size is %d and other size is %d\n", buffer, sizeof(value), datasize);
-    //         fprintf(stderr, "Error: Unable to read physical data.\n");
-    //         return DISK_READ_ERROR;
-    //     }
-    //     printf("buffer is %d eee\n", sizeof(datasize));
-    //     if (value == 0x0000)
-    //     {
-    //         // The next two bits are not 0x00
-    //         // so write new inode index to this location
-    //         if (lseek(disk, -2, SEEK_CUR) == -1)
-    //         {
-    //             fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
-    //             return SEEK_ERROR;
-    //         }
-    //         if (write(disk, &byte_inode, sizeof(byte_inode)) != sizeof(byte_inode))
-    //         {
-    //             fprintf(stderr, "Error: Unable to write physical data.\n");
-    //             return WRITE_ERROR;
-    //         }
-    //         break;
-    //     }
-    // }
-    // LOOOOOOOOOOK implement logic if we run out of space for inodes by allocating a new block for more inode space
 
     insertFileEntry(&openFileTable, newFileEntry);
-
-    /* find first free location to place an inode block */
-    /* add a new entry in drt that refers to this filename
-     *     returns a fileDescriptor (temp->id) */
     return fd;
 }
 
 int tfs_closeFile(fileDescriptor FD)
-{
-    /* Closes the file, de-allocates all system resources, and removes table
+{   /* Closes the file, de-allocates all system resources, and removes table
     entry */
 
     int result = deleteFileEntry(openFileTable, FD);
@@ -536,8 +436,7 @@ int tfs_closeFile(fileDescriptor FD)
 }
 
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
-{
-    /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
+{    /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
     file’s content, to the file system. Previous content (if any) will be
     completely lost. Sets the file pointer to 0 (the start of file) when
     done. Returns success/error codes. */
@@ -565,7 +464,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
         printf("deleting old data RN\n");
         int file_index = file->file_index;
         int prev_num_blocks = (file->file_size + (BLOCKSIZE - 4) - 1) / (BLOCKSIZE - 4);
-        printf("prev num blocks is %d and file_index is %d for fd %d\n", prev_num_blocks, file_index, file->fileDescriptor);
+
         char freeBlock[BLOCKSIZE];
         freeBlock[0] = 0x04;
         freeBlock[1] = 0x44;
@@ -583,11 +482,13 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
             }
             free_block(mountedBitmap, file->file_index + i);
         }
+
         // deallocate previous blocks allocated to a file
         free_num_blocks(mountedBitmap, file->inode_index, prev_num_blocks);
         // update file size to be 0 now temporarily until we write new data
         file->file_size = 0;
     }
+
     // find free blocks for new data for file
     int free_block = find_free_blocks_of_size(mountedBitmap, num_blocks);
     file->file_index = free_block;
@@ -603,11 +504,13 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
         closeDisk(disk);
         return DISK_READ_ERROR;
     }
+
     // write the data (which is 4 less than blocksize because 4 bytes used for metadata)
     int i;
     int remaining_size = size;
     int chunk_size = 252;
     int offset = 4;
+    
     // calculate the block number of next block to link blocks in a file system
     int next_block = free_block + 1;
     int blocks_written = 1;
@@ -619,9 +522,7 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
         {
             fileContent[offset + i] = buffer[i];
         }
-        // offset += current_chunk_size;
         remaining_size -= current_chunk_size;
-        printf("remaining size is %d\n", remaining_size);
 
         // Fill the remaining space in the block with 0x00 if current_chunk_size is less than 252
         if (current_chunk_size < chunk_size)
@@ -651,13 +552,6 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
             closeDisk(disk);
             return WRITE_ERROR;
         }
-        // Print the block data written in bytes
-        printf("Block %d data written: ", blocks_written++);
-        for (i = 0; i < BLOCKSIZE; i++)
-        {
-            printf("%02x ", fileContent[i]);
-        }
-        printf("\n");
     }
     file->file_size = size;
     printf("after editing file size\n");
@@ -700,62 +594,11 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size)
         closeDisk(disk);
         return WRITE_ERROR;
     }
-
-    // set write block in terms of disk index
-    // int write_offset = free_block * 256;
-    // int data_written = 0;
-    // while (data_written <= size)
-    // {
-    //     if (lseek(disk, write_offset, SEEK_SET) == -1)
-    //     {
-    //         fprintf(stderr, "Error: Unable to seek to root directory block.\n");
-    //         closeDisk(disk);
-    //         return SEEK_ERROR;
-    //     }
-    //     unsigned char data = 0x03; // 3 for file extent block
-    //     if (write(disk, &data, sizeof(data)) != sizeof(data))
-    //     {
-    //         fprintf(stderr, "Error: Unable to write physical data.\n");
-    //         return WRITE_ERROR;
-    //     }
-    //     // index to the where data starts (index 4)
-    //     if (lseek(disk, 3, SEEK_CUR) == -1)
-    //     {
-    //         fprintf(stderr, "Error: Unable to offset file descriptor pointer.\n");
-    //         return SEEK_ERROR;
-    //     }
-    //     // write the data (which is 4 less than blocksize because 4 bytes used for metadata)
-    //     if (write(disk, buffer, BLOCKSIZE - 4) != BLOCKSIZE - 4)
-    //     {
-    //         fprintf(stderr, "Error: Unable to write physical data.\n");
-    //         return WRITE_ERROR;
-    //     }
-    //     data_written += BLOCKSIZE - 4;
-    //     if (data_written < size)
-    //     {
-    //         if (lseek(disk, write_offset + 2, SEEK_SET) == -1)
-    //         {
-    //             fprintf(stderr, "Error: Unable to seek to next block position.\n");
-    //             closeDisk(disk);
-    //             return SEEK_ERROR;
-    //         }
-    //         // write block index divided by 256 so it takes less bits to store
-    //         uint16_t next_block = (uint16_t)(write_offset / 256 + 1);
-    //         if (write(disk, &next_block, sizeof(next_block)) != sizeof(next_block))
-    //         {
-    //             fprintf(stderr, "Error: Unable to write next block index data.\n");
-    //             return WRITE_ERROR;
-    //         }
-    //     }
-    //     write_offset += BLOCKSIZE;
-    // }
-    printf("returning in this function\n");
-    return 1;
+    return WRITE_SUCCESS;
 }
 
 int tfs_deleteFile(fileDescriptor FD)
-{
-    /* deletes a file and marks its blocks as free on disk. */
+{    /* deletes a file and marks its blocks as free on disk. */
     if (!mounted)
     {
         return MOUNTED_ERROR;
@@ -765,16 +608,16 @@ int tfs_deleteFile(fileDescriptor FD)
     free_num_blocks(bitmap, deleteMe->inode_index, deleteMe->file_size);
     writeBitmap(disk, bitmap);
     tfs_closeFile(FD); // remove from open file table and free memory
-    return 1;
+    return DELETE_SUCCESS;
 }
 
 int tfs_readByte(fileDescriptor FD, char *buffer)
-{
-    /* reads one byte from the file and copies it to buffer, using the
+{    /* reads one byte from the file and copies it to buffer, using the
     current file pointer location and incrementing it by one upon success.
     If the file pointer is already past the end of the file then
     tfs_readByte() should return an error and not increment the file pointer.
     */
+
     if (!mounted)
     {
         return MOUNTED_ERROR;
@@ -810,32 +653,32 @@ int tfs_readByte(fileDescriptor FD, char *buffer)
         fprintf(stderr, "Error: Unable to read byte from file.\n");
         return READ_ERROR;
     }
-
-    // Increment the file pointer location
     file->offset++;
-
-    return 1; // Success
+    return READ_SUCCESS; 
 }
 
 int tfs_seek(fileDescriptor FD, int offset)
-{
-    /* change the file pointer location to offset (absolute). Returns
+{    /* change the file pointer location to offset (absolute). Returns
     success/error codes.*/
+
     if (!mounted)
     {
         return MOUNTED_ERROR;
     }
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
     file->offset = offset;
-    return 1; // make success message thats meainful
+    return SEEK_SUCCESS;
 }
+
+
 
 // EXTRA CREDIT :,)
 
+
+
 // Timestamps (10%)
 time_t tfs_readFileInfo(fileDescriptor FD)
-{
-    /* returns the file’s creation time or all info
+{    /* returns the file’s creation time or all info
         should be stored on the INODE*/
 
     FileEntry *file = findFileEntryByFD(openFileTable, FD);
@@ -856,8 +699,7 @@ time_t tfs_readFileInfo(fileDescriptor FD)
     time_t access_time = *((time_t *)(inodeBlock[33]));
     printf("File creation time: %s\n", ctime(&access_time));
 
-    // Return -1 if file not found
-    return 0;
+    return INFO_SUCCESS;
 }
 
 // Directory listing and file renaming (10%)
@@ -873,7 +715,7 @@ int tfs_rename(fileDescriptor FD, char *newName)
     }
     strcpy(file->filename, newName);
     printf("File renamed successfully to %s.\n", newName);
-    return 1;
+    return RENAME_SUCCESS;
 }
 
 int tfs_readdir()
@@ -898,16 +740,9 @@ int tfs_readdir()
         {
             break;
         }
-        printf("value is %d\n", value);
         unsigned char inodeBlock[BLOCKSIZE];
         readBlock(disk, value, inodeBlock);
         char filename[9];
-        printf("Inode contents: ");
-        for (int i = 0; i < BLOCKSIZE; i++)
-        {
-            printf("%02x ", inodeBlock[i]);
-        }
-        printf("\n");
         for (j = 0; j < 8 && inodeBlock[j + 4] != 0x00; j++)
         {
             filename[j] = inodeBlock[j + 4];
@@ -915,8 +750,7 @@ int tfs_readdir()
         filename[j] = '\0'; // Null-terminate the string
         printf("File name: %s\n", filename);
     }
-
-    return 1;
+    return READDIR_SUCCESS;
 }
 
 int main()
