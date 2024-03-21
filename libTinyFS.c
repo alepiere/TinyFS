@@ -466,6 +466,12 @@ fileDescriptor tfs_openFile(char *name)
     {
         inode[i] = name[i-4];
     }
+    printf("inode contents: ");
+    for (int i = 0; i < BLOCKSIZE; i++)
+    {
+        printf("%02x ", inode[i]);
+    }
+    printf("\n");
     //inode[12] will be null character which blocks are set to by default
     //inode[13] and [inode 14] will be file size which are set to 0/null again by default
 
@@ -758,6 +764,7 @@ int main()
     }
     tfs_mount("tinyfs_disk");
     tfs_openFile("testfile");
+    tfs_openFile("testfil3");
     printf("TinyFS file system created successfully.\n");
     return 1;
 }
