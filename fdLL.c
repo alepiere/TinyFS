@@ -73,7 +73,7 @@ int deleteFileEntry(FileEntry *head, fileDescriptor fileDescriptor) {
     return -1;
 }
 
-// print the linked list of FileEntrys
+// print the linked list of FileEntries
 void printFileEntrys(FileEntry *head) {
     printf("FileEntrys:\n");
     FileEntry *current = head;
@@ -83,7 +83,7 @@ void printFileEntrys(FileEntry *head) {
     }
 }
 
-// free the linked list of FileEntrys
+// free the linked list of FileEntries
 void freeTable(FileEntry *head) {
     FileEntry *current = head;
     while (current != NULL) {

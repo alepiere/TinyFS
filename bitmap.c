@@ -1,7 +1,7 @@
 #include "bitmap.h"
 #include <stdlib.h>
 
-// funcion to initialize bit map
+// function to initialize bit map
 Bitmap *create_bitmap(int bitmap_size, int num_blocks, unsigned char *free_blocks)
 {
     Bitmap *bitmap = (Bitmap *)malloc(sizeof(Bitmap));
@@ -13,7 +13,7 @@ Bitmap *create_bitmap(int bitmap_size, int num_blocks, unsigned char *free_block
         printf("bitmap size: %d\n", bitmap->bitmap_size);
         printf("num_blocks: %d\n", bitmap->num_blocks);
         // Allocate memory for free blocks by number of bytes
-        //Basically have an optional parameter to pass in freeblocks if there already is one and if not make one
+        //Basically have an optional parameter to pass in free blocks if there already is one and if not make one
         if (free_blocks == NULL){
             bitmap->free_blocks = (unsigned char *)malloc((bitmap->num_blocks + 7) / 8);
             initialize_free_blocks(bitmap);
@@ -21,7 +21,7 @@ Bitmap *create_bitmap(int bitmap_size, int num_blocks, unsigned char *free_block
             allocate_block(bitmap, 1); // directory block goes here
         }
         else{
-            //initalization steps
+            //initialization steps
             bitmap->free_blocks = free_blocks;
         }
         if ((bitmap->free_blocks) == NULL)
